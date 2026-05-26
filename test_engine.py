@@ -1,7 +1,7 @@
 """
-Test script for the new Exercise Engine
+Test script for the new Exercise Engine.
 
-Bu script, yeni YAML tabanlı egzersiz motorunu test eder.
+This script exercises the YAML-driven exercise engine end-to-end.
 """
 
 import sys
@@ -16,143 +16,143 @@ import yaml
 
 
 def test_yaml_loading():
-    """YAML dosyalarının yüklenmesini test et."""
+    """Verify that every YAML definition loads successfully."""
     print("=" * 60)
     print("TEST: YAML Loading")
     print("=" * 60)
-    
+
     exercises = get_available_exercises()
     print(f"\nAvailable exercises: {exercises}")
-    
+
     for ex_name in exercises:
         try:
             exercise = load_exercise(ex_name)
-            print(f"\n✅ {ex_name}:")
+            print(f"\n[OK] {ex_name}:")
             print(f"   Type: {type(exercise).__name__}")
             print(f"   Name: {exercise.display_name}")
             print(f"   States: {list(exercise.states.keys())}")
             print(f"   Angles: {list(exercise.angles.keys())}")
         except Exception as e:
-            print(f"\n❌ {ex_name}: {e}")
-    
+            print(f"\n[FAIL] {ex_name}: {e}")
+
     return True
 
 
 def test_exercise_info():
-    """Egzersiz bilgilerini test et."""
+    """Verify the exercise metadata helpers."""
     print("\n" + "=" * 60)
     print("TEST: Exercise Info")
     print("=" * 60)
-    
+
     for ex_name in get_available_exercises():
         info = get_exercise_info(ex_name)
-        print(f"\n📋 {ex_name}:")
+        print(f"\n[INFO] {ex_name}:")
         print(f"   Display Name: {info.get('name')}")
         print(f"   Target Muscles: {info.get('target_muscles')}")
         print(f"   Difficulty: {info.get('difficulty')}")
         print(f"   Default Reps: {info.get('reps')}")
-    
+
     return True
 
 
 def test_state_machine():
-    """State machine mantığını test et."""
+    """Verify the FSM behavior for a standard exercise."""
     print("\n" + "=" * 60)
     print("TEST: State Machine Logic")
     print("=" * 60)
-    
-    # Squat testi
+
+    # Squat test
     squat = load_exercise("squat")
-    
-    # Simüle edilmiş açı değerleri
+
+    # Simulated angle values walking through a full rep
     test_angles = [175, 160, 130, 100, 85, 95, 140, 170, 175]
-    
+
     print(f"\nSquat State Machine Test:")
     print(f"Trigger state: {squat.counter_rule.get('trigger_state')}")
-    
+
     for angle in test_angles:
         context = {"angle": angle}
         squat.update_state(context)
         squat.update_counter()
-        print(f"   Angle: {angle:3d}° → State: {squat.current_state:15s} | Counter: {squat.counter}")
-    
+        print(f"   Angle: {angle:3d} deg -> State: {squat.current_state:15s} | Counter: {squat.counter}")
+
     assert squat.counter == 1, f"Expected 1 rep, got {squat.counter}"
-    print(f"\n✅ State machine working correctly! Final count: {squat.counter}")
-    
+    print(f"\n[OK] State machine working correctly! Final count: {squat.counter}")
+
     return True
 
 
 def test_bilateral_exercise():
-    """Bilateral egzersizi test et."""
+    """Verify bilateral exercise loading."""
     print("\n" + "=" * 60)
     print("TEST: Bilateral Exercise (Hammer Curl)")
     print("=" * 60)
-    
+
     hammer_curl = load_exercise("hammer_curl")
-    
+
     assert isinstance(hammer_curl, BilateralExercise), "Hammer curl should be BilateralExercise"
-    
-    print(f"\n✅ Hammer Curl loaded as BilateralExercise")
+
+    print(f"\n[OK] Hammer Curl loaded as BilateralExercise")
     print(f"   Sides: {hammer_curl.sides}")
     print(f"   Left angles: {[k for k in hammer_curl.angles.keys() if 'left' in k]}")
     print(f"   Right angles: {[k for k in hammer_curl.angles.keys() if 'right' in k]}")
-    
+
     return True
 
 
 def test_duration_exercise():
-    """Duration egzersizini test et."""
+    """Verify duration-based exercise loading."""
     print("\n" + "=" * 60)
     print("TEST: Duration Exercise (Plank)")
     print("=" * 60)
-    
+
     plank = load_exercise("plank")
-    
+
     assert isinstance(plank, DurationExercise), "Plank should be DurationExercise"
-    
-    print(f"\n✅ Plank loaded as DurationExercise")
+
+    print(f"\n[OK] Plank loaded as DurationExercise")
     print(f"   Target duration: {plank.target_duration}s")
     print(f"   Hold state: {plank.hold_state}")
-    
+
     return True
 
 
 def test_feedback_rules():
-    """Feedback kurallarını test et."""
+    """Verify the feedback rules engine."""
     print("\n" + "=" * 60)
     print("TEST: Feedback Rules")
     print("=" * 60)
-    
+
     squat = load_exercise("squat")
-    
-    # Kötü form simülasyonu - dizler içe kaçıyor
+
+    # Bad-form simulation: knees caving inward
     context = {
         "angle": 100,
         "left_knee_x": 200,
-        "left_ankle_x": 250,  # Diz, ayak bilekten 50px solda
+        "left_ankle_x": 250,  # knee 50px to the left of the ankle
         "left_shoulder_x": 220,
         "left_hip_x": 230
     }
-    
+
     feedback = squat.check_feedback(context)
-    
+
     print(f"\nSquat Feedback Test:")
     print(f"   Context: knee_x={context['left_knee_x']}, ankle_x={context['left_ankle_x']}")
     print(f"   Feedback messages: {len(feedback)}")
-    
+
     for fb in feedback:
-        print(f"   ⚠️  {fb['severity'].upper()}: {fb['message']}")
-    
+        print(f"   [{fb['severity'].upper()}] {fb['message']}")
+
     return True
 
 
 def test_config_validation():
-    """Config validation test et."""
+    """Verify the config validator."""
     print("\n" + "=" * 60)
     print("TEST: Config Validation")
     print("=" * 60)
-    
-    # Geçerli config
+
+    # Valid config
     valid_config = {
         "name": "test_exercise",
         "angles": {
@@ -166,32 +166,32 @@ def test_config_validation():
             "trigger_state": "down"
         }
     }
-    
+
     errors = validate_exercise_config(valid_config)
     print(f"\nValid config errors: {errors}")
     assert len(errors) == 0, f"Valid config should have no errors: {errors}"
-    print("✅ Valid config passed")
-    
-    # Geçersiz config
+    print("[OK] Valid config passed")
+
+    # Invalid config
     invalid_config = {
         "name": "test",
         "states": {}
     }
-    
+
     errors = validate_exercise_config(invalid_config)
     print(f"\nInvalid config errors: {errors}")
     assert len(errors) > 0, "Invalid config should have errors"
-    print("✅ Invalid config correctly detected")
-    
+    print("[OK] Invalid config correctly detected")
+
     return True
 
 
 def main():
-    """Tüm testleri çalıştır."""
-    print("\n" + "🏋️ " * 20)
+    """Run the full test suite."""
+    print("\n" + "=" * 60)
     print("EXERCISE ENGINE TEST SUITE")
-    print("🏋️ " * 20)
-    
+    print("=" * 60)
+
     tests = [
         ("YAML Loading", test_yaml_loading),
         ("Exercise Info", test_exercise_info),
@@ -201,31 +201,31 @@ def main():
         ("Feedback Rules", test_feedback_rules),
         ("Config Validation", test_config_validation),
     ]
-    
+
     results = []
     for name, test_func in tests:
         try:
             success = test_func()
-            results.append((name, "✅ PASSED" if success else "❌ FAILED"))
+            results.append((name, "[PASSED]" if success else "[FAILED]"))
         except Exception as e:
-            results.append((name, f"❌ ERROR: {e}"))
-    
+            results.append((name, f"[ERROR] {e}"))
+
     print("\n" + "=" * 60)
     print("TEST SUMMARY")
     print("=" * 60)
-    
+
     for name, result in results:
         print(f"   {name}: {result}")
-    
+
     passed = sum(1 for _, r in results if "PASSED" in r)
     total = len(results)
-    
+
     print(f"\n   Total: {passed}/{total} tests passed")
-    
+
     if passed == total:
-        print("\n🎉 All tests passed! The Exercise Engine is ready to use.")
+        print("\nAll tests passed! The Exercise Engine is ready to use.")
     else:
-        print("\n⚠️  Some tests failed. Please check the errors above.")
+        print("\nSome tests failed. Please check the errors above.")
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ description: "Classic full body cardio movement"
 angles:
   primary:
     points: [left_elbow, left_shoulder, left_hip]
-    description: "Kol açısı"
+    description: "Arm angle"
 
 state_order:
   - open
@@ -26,15 +26,15 @@ state_order:
 states:
   closed:
     condition: "angle < 30"
-    description: "Kollar yanda"
-  
+    description: "Arms down at sides"
+
   opening:
     condition: "angle >= 30 and angle < 150"
-    description: "Açılma"
-  
+    description: "Opening"
+
   open:
     condition: "angle >= 150"
-    description: "Kollar yukarıda"
+    description: "Arms overhead"
 
 counter:
   trigger_state: open

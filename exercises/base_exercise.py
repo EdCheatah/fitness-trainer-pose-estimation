@@ -1,15 +1,15 @@
 """
-BaseExercise - Core Exercise Engine
+BaseExercise - Core Exercise Engine.
 
-Bu sınıf tüm egzersizlerin temel motorudur.
-Hareketler YAML dosyalarından yüklenir ve bu motor tarafından işlenir.
+Base class for every exercise. Movements are loaded from YAML files
+and executed by this engine.
 
 Features:
-- Finite State Machine (FSM) ile hareket aşamaları
-- Otomatik tekrar sayımı
-- Gerçek zamanlı form geri bildirimi
-- Kalibrasyon desteği
-- Zaman filtreleme (yanlış sayımı önler)
+- Finite State Machine (FSM) for movement phases
+- Automatic rep counting
+- Real-time form feedback
+- Calibration support
+- Time-based filtering (prevents miscounts)
 """
 
 import re
@@ -20,79 +20,80 @@ from typing import Dict, List, Optional, Tuple, Any
 
 class BaseExercise:
     """
-    Tüm egzersizler için temel sınıf.
-    YAML konfigürasyonundan yüklenen hareket tanımlarını işler.
+    Base class for every exercise.
+
+    Processes movement definitions loaded from a YAML configuration.
     """
-    
-    # MediaPipe landmark indeksleri
+
+    # MediaPipe landmark indices
     LANDMARK_MAP = {
-        # Yüz
+        # Face
         "nose": 0,
-        # Omuzlar
+        # Shoulders
         "left_shoulder": 11,
         "right_shoulder": 12,
-        # Dirsekler
+        # Elbows
         "left_elbow": 13,
         "right_elbow": 14,
-        # Bilekler
+        # Wrists
         "left_wrist": 15,
         "right_wrist": 16,
-        # Kalçalar
+        # Hips
         "left_hip": 23,
         "right_hip": 24,
-        # Dizler
+        # Knees
         "left_knee": 25,
         "right_knee": 26,
-        # Ayak bilekleri
+        # Ankles
         "left_ankle": 27,
         "right_ankle": 28,
     }
-    
+
     def __init__(self, config: Dict[str, Any]):
         """
-        Exercise motorunu başlat.
-        
+        Initialize the exercise engine.
+
         Args:
-            config: YAML'dan yüklenen egzersiz konfigürasyonu
+            config: Exercise configuration loaded from YAML
         """
-        # Temel bilgiler
+        # Basic metadata
         self.name = config["name"]
         self.display_name = config.get("display_name", self.name.replace("_", " ").title())
         self.type = config.get("type", "repetition")  # repetition | duration
-        
-        # Açı tanımları
+
+        # Angle definitions
         self.angles = config.get("angles", {})
-        
-        # Durum makinesi (FSM)
+
+        # Finite State Machine (FSM)
         self.states = config.get("states", {})
         self.state_order = config.get("state_order", list(self.states.keys()))
-        
-        # Sayaç kuralları
+
+        # Counter rules
         self.counter_rule = config.get("counter", {})
-        
-        # Geri bildirim kuralları
+
+        # Feedback rules
         self.feedback_rules = config.get("feedback", {})
-        
-        # Çizim ayarları
+
+        # Drawing / visualization settings
         self.visualization = config.get("visualization", {})
-        
-        # Durum değişkenleri
+
+        # FSM state variables
         self.current_state = None
         self.prev_state = None
         self.counter = 0
-        self.counter_left = 0  # Çift taraflı hareketler için
+        self.counter_left = 0  # For bilateral movements
         self.counter_right = 0
-        
-        # Zaman filtreleme
+
+        # Time-based filter
         self.last_count_time = 0
-        self.min_rep_duration = config.get("min_rep_duration", 0.5)  # minimum saniye
-        
-        # Kalibrasyon
+        self.min_rep_duration = config.get("min_rep_duration", 0.5)  # minimum seconds
+
+        # Calibration
         self.calibration_enabled = config.get("calibration", {}).get("enabled", False)
         self.calibration_reps = config.get("calibration", {}).get("reps", 3)
         self.calibration_data = {"max_angles": [], "min_angles": []}
         self.is_calibrated = False
-        
+
         # Smoothing
         self.smoothing_enabled = config.get("smoothing", {}).get("enabled", False)
         self.smoothing_window = config.get("smoothing", {}).get("window", 5)
@@ -110,68 +111,68 @@ class BaseExercise:
         self.last_left_trigger_time = 0.0
         self.last_left_trigger_left = 0.0
         self.last_left_trigger_right = 0.0
-        
+
         # ==================== FORM SCORE SYSTEM ====================
-        # Form Score (0-100) hesaplama için değişkenler
+        # Variables for Form Score (0-100) computation
         self.form_score_config = config.get("form_score", {})
         self.ideal_angles = self.form_score_config.get("ideal_angles", {})
         self.tempo_range = self.form_score_config.get("tempo_range", {"min": 1.0, "max": 3.0})
-        
+
         # Rep tracking for form score
         self.rep_start_time = None
         self.rep_durations = []
         self.rep_form_scores = []
         self.current_form_score = 100
         self.avg_form_score = 100
-        
+
         # Feedback penalty tracking
         self.active_feedback_count = 0
-        
+
     def get_landmark_coords(self, landmarks, point_name: str, frame_shape: Tuple[int, int]) -> Tuple[int, int]:
         """
-        Landmark adından piksel koordinatlarını al.
-        
+        Get pixel coordinates from a landmark name.
+
         Args:
             landmarks: MediaPipe pose landmarks
-            point_name: Landmark adı (örn: "left_hip")
-            frame_shape: Frame boyutları (height, width)
-            
+            point_name: Landmark name (e.g. "left_hip")
+            frame_shape: Frame dimensions (height, width)
+
         Returns:
-            (x, y) piksel koordinatları
+            (x, y) pixel coordinates
         """
         idx = self.LANDMARK_MAP.get(point_name)
         if idx is None:
             raise ValueError(f"Unknown landmark: {point_name}")
-        
+
         landmark = landmarks[idx]
         x = int(landmark.x * frame_shape[1])
         y = int(landmark.y * frame_shape[0])
         return (x, y)
-    
+
     def compute_angle(self, landmarks, angle_name: str, frame_shape: Tuple[int, int]) -> float:
         """
-        Belirtilen açıyı hesapla.
-        
+        Compute the specified angle.
+
         Args:
             landmarks: MediaPipe pose landmarks
-            angle_name: Açı adı (config'deki angles altında tanımlı)
-            frame_shape: Frame boyutları
-            
+            angle_name: Angle name (defined under 'angles' in the config)
+            frame_shape: Frame dimensions
+
         Returns:
-            Derece cinsinden açı
+            Angle in degrees
         """
         angle_def = self.angles.get(angle_name)
         if not angle_def:
             raise ValueError(f"Undefined angle: {angle_name}")
-        
+
         points = angle_def["points"]
         p1 = self.get_landmark_coords(landmarks, points[0], frame_shape)
         p2 = self.get_landmark_coords(landmarks, points[1], frame_shape)
         p3 = self.get_landmark_coords(landmarks, points[2], frame_shape)
-        
+
         angle = self._angle_between(p1, p2, p3)
 
-        # Smoothing uygula
+        # Apply smoothing
         if self.smoothing_enabled:
             angle = self._smooth_angle(angle)
 
@@ -183,39 +184,39 @@ class BaseExercise:
         if self.is_calibrated and self.calibration_scale != 1.0:
             angle = max(0.0, min(180.0, self.calibration_scale * angle + self.calibration_offset_val))
 
-        # Cache'e kaydet
+        # Cache the result
         self._computed_angles[angle_name] = angle
 
         return angle
-    
+
     def compute_all_angles(self, landmarks, frame_shape: Tuple[int, int]) -> Dict[str, float]:
-        """Tüm tanımlı açıları hesapla."""
+        """Compute every defined angle."""
         self._computed_angles = {}
         for angle_name in self.angles.keys():
             self.compute_angle(landmarks, angle_name, frame_shape)
         return self._computed_angles
-    
+
     def get_context(self, landmarks, frame_shape: Tuple[int, int]) -> Dict[str, Any]:
         """
-        Durum değerlendirmesi için context oluştur.
-        
+        Build the context dict used for state evaluation.
+
         Args:
             landmarks: MediaPipe pose landmarks
-            frame_shape: Frame boyutları
-            
+            frame_shape: Frame dimensions
+
         Returns:
-            Tüm açılar ve landmark koordinatlarını içeren dict
+            Dict containing every angle and landmark coordinate.
         """
         context = {}
-        
-        # Tüm açıları ekle
+
+        # Add every computed angle
         for angle_name, angle_value in self._computed_angles.items():
             context[f"{angle_name}_angle"] = angle_value
-            # Kısa erişim için "angle" key'i de ekle (primary için)
+            # Also expose a short-form "angle" key for the primary angle
             if angle_name == "primary":
                 context["angle"] = angle_value
-        
-        # Landmark koordinatlarını ekle
+
+        # Add landmark coordinates
         for point_name, idx in self.LANDMARK_MAP.items():
             try:
                 coords = self.get_landmark_coords(landmarks, point_name, frame_shape)
@@ -223,7 +224,7 @@ class BaseExercise:
                 context[f"{point_name}_y"] = coords[1]
             except:
                 pass
-        
+
         return context
 
     def key_landmarks_visible(self, landmarks, min_visibility: float = 0.5) -> bool:
@@ -242,22 +243,22 @@ class BaseExercise:
 
     def update_state(self, context: Dict[str, Any]) -> str:
         """
-        Mevcut durumu güncelle (FSM).
-        
+        Update the current FSM state.
+
         Args:
-            context: Açılar ve koordinatları içeren dict
-            
+            context: Dict containing angles and coordinates
+
         Returns:
-            Yeni durum adı
+            New state name
         """
         self.prev_state = self.current_state
 
-        # State order'a göre kontrol et (öncelik sırası)
+        # Check states in priority order
         for state_name in self.state_order:
             state_def = self.states.get(state_name, {})
             condition = state_def.get("condition", "False")
-            
-            # Güvenli eval
+
+            # Safe eval
             try:
                 if self._safe_eval(condition, context):
                     self.current_state = state_name
@@ -274,24 +275,24 @@ class BaseExercise:
 
     def update_counter(self) -> bool:
         """
-        Sayacı güncelle.
-        
+        Update the rep counter.
+
         Returns:
-            Sayaç artırıldıysa True
+            True if the counter was incremented.
         """
         trigger_state = self.counter_rule.get("trigger_state")
-        from_state = self.counter_rule.get("from_state")  # Opsiyonel: hangi state'den gelmiş olmalı
-        
-        # State değişimi kontrolü
+        from_state = self.counter_rule.get("from_state")  # Optional: required previous state
+
+        # State transition check
         state_changed = self.prev_state != self.current_state
         reached_trigger = self.current_state == trigger_state
-        
-        # from_state belirtilmişse kontrol et
+
+        # Validate from_state if provided
         from_valid = True
         if from_state:
             from_valid = self.prev_state == from_state
-        
-        # Zaman filtresi
+
+        # Time-based filter
         current_time = time.time()
         time_valid = (current_time - self.last_count_time) >= self.min_rep_duration
 
@@ -312,24 +313,24 @@ class BaseExercise:
             return True
 
         return False
-    
+
     def check_feedback(self, context: Dict[str, Any]) -> List[str]:
         """
-        Form geri bildirimlerini kontrol et.
-        
+        Evaluate form feedback rules.
+
         Args:
-            context: Açılar ve koordinatları içeren dict
-            
+            context: Dict containing angles and coordinates
+
         Returns:
-            Uyarı mesajları listesi
+            List of warning messages
         """
         messages = []
-        
+
         for feedback_name, feedback_def in self.feedback_rules.items():
             condition = feedback_def.get("condition", "False")
-            message = feedback_def.get("message", "Form uyarısı")
+            message = feedback_def.get("message", "Form warning")
             severity = feedback_def.get("severity", "warning")  # warning | error | info
-            
+
             try:
                 if self._safe_eval(condition, context):
                     messages.append({
@@ -339,115 +340,115 @@ class BaseExercise:
                     })
             except Exception as e:
                 print(f"Feedback condition error ({feedback_name}): {e}")
-        
+
         return messages
-    
+
     def get_visualization_config(self) -> Dict[str, Any]:
-        """Görselleştirme ayarlarını döndür."""
+        """Return the visualization configuration."""
         return self.visualization
-    
+
     # ==================== FORM SCORE METHODS ====================
-    
+
     def calculate_form_score(self, context: Dict[str, Any], feedback_list: List[Dict]) -> int:
         """
-        Form skorunu hesapla (0-100).
-        
-        Skor bileşenleri:
-        - Açı doğruluğu (40 puan)
-        - Tempo/hız (30 puan)
-        - Form hataları (30 puan)
-        
+        Compute the form score (0-100).
+
+        Score components:
+        - Angle accuracy (40 points max penalty)
+        - Tempo/speed (30 points max penalty)
+        - Form errors (30 points max penalty)
+
         Args:
-            context: Mevcut açılar ve koordinatlar
-            feedback_list: Aktif feedback mesajları
-            
+            context: Current angles and coordinates
+            feedback_list: Active feedback messages
+
         Returns:
-            0-100 arası form skoru
+            Form score in the 0-100 range.
         """
         score = 100
-        
-        # 1. AÇI DOĞRULUĞU (40 puan max penalty)
+
+        # 1. ANGLE ACCURACY (40 points max penalty)
         angle_penalty = self._calculate_angle_penalty(context)
         score -= min(angle_penalty, 40)
-        
-        # 2. TEMPO PENALTY (30 puan max penalty)
+
+        # 2. TEMPO PENALTY (30 points max penalty)
         tempo_penalty = self._calculate_tempo_penalty()
         score -= min(tempo_penalty, 30)
-        
-        # 3. FORM HATALARI (30 puan max penalty)
-        # Her feedback -10 puan
+
+        # 3. FORM ERRORS (30 points max penalty)
+        # Each feedback message costs -10 points
         feedback_penalty = len(feedback_list) * 10
         score -= min(feedback_penalty, 30)
-        
-        # Skor 0-100 aralığında kalsın
+
+        # Clamp to 0-100
         score = max(0, min(100, score))
-        
+
         self.current_form_score = score
         self.active_feedback_count = len(feedback_list)
-        
+
         return score
-    
+
     def _calculate_angle_penalty(self, context: Dict[str, Any]) -> int:
-        """Açı sapmasına göre penalty hesapla."""
+        """Compute penalty based on angle deviation from ideal."""
         if not self.ideal_angles:
             return 0
-        
+
         total_deviation = 0
         count = 0
-        
+
         for angle_name, ideal_value in self.ideal_angles.items():
             current_value = context.get(f"{angle_name}_angle") or context.get("angle", 0)
             if current_value:
                 deviation = abs(current_value - ideal_value)
-                # Her 10 derece sapma = 5 puan penalty
+                # Each 10 degrees of deviation = 5 points penalty
                 total_deviation += (deviation / 10) * 5
                 count += 1
-        
+
         if count > 0:
             return int(total_deviation / count)
         return 0
-    
+
     def _calculate_tempo_penalty(self) -> int:
-        """Tempo/hız penalty hesapla."""
+        """Compute the tempo/speed penalty."""
         if not self.rep_durations:
             return 0
-        
+
         last_duration = self.rep_durations[-1] if self.rep_durations else 0
         min_tempo = self.tempo_range.get("min", 1.0)
         max_tempo = self.tempo_range.get("max", 3.0)
-        
+
         if last_duration < min_tempo:
-            # Çok hızlı - her 0.5 saniye = 15 puan penalty
+            # Too fast - each 0.5s = 15 points penalty
             return int((min_tempo - last_duration) / 0.5 * 15)
         elif last_duration > max_tempo:
-            # Çok yavaş - her 1 saniye = 10 puan penalty
+            # Too slow - each 1s = 10 points penalty
             return int((last_duration - max_tempo) * 10)
-        
+
         return 0
-    
+
     def start_rep_tracking(self):
-        """Rep başlangıç zamanını kaydet."""
+        """Store the rep start timestamp."""
         self.rep_start_time = time.time()
-    
+
     def end_rep_tracking(self):
-        """Rep süresini kaydet ve form score'u güncelle."""
+        """Record the rep duration and update the form score history."""
         if self.rep_start_time:
             duration = time.time() - self.rep_start_time
             self.rep_durations.append(duration)
             self.rep_start_time = None
-            
-            # Son rep'in form score'unu kaydet
+
+            # Store this rep's form score
             self.rep_form_scores.append(self.current_form_score)
-            
-            # Ortalama form score'u güncelle
+
+            # Update the running average form score
             if self.rep_form_scores:
                 self.avg_form_score = int(sum(self.rep_form_scores) / len(self.rep_form_scores))
-    
+
     def get_form_score_grade(self, score: int = None) -> str:
-        """Form score'dan harf notu al."""
+        """Return the letter grade for the form score."""
         if score is None:
             score = self.current_form_score
-        
+
         if score >= 90:
             return "A"
         elif score >= 80:
@@ -458,25 +459,25 @@ class BaseExercise:
             return "D"
         else:
             return "F"
-    
+
     def get_form_score_color(self, score: int = None) -> Tuple[int, int, int]:
-        """Form score'a göre renk döndür (BGR)."""
+        """Return a BGR color matching the form score band."""
         if score is None:
             score = self.current_form_score
-        
+
         if score >= 90:
-            return (0, 255, 0)      # Yeşil
+            return (0, 255, 0)      # Green
         elif score >= 80:
-            return (0, 255, 255)    # Sarı
+            return (0, 255, 255)    # Yellow
         elif score >= 70:
-            return (0, 165, 255)    # Turuncu
+            return (0, 165, 255)    # Orange
         elif score >= 60:
-            return (0, 100, 255)    # Koyu turuncu
+            return (0, 100, 255)    # Dark orange
         else:
-            return (0, 0, 255)      # Kırmızı
-    
+            return (0, 0, 255)      # Red
+
     def reset(self):
-        """Egzersizi sıfırla."""
+        """Reset the exercise state."""
         self.current_state = None
         self.prev_state = None
         self.counter = 0
@@ -495,9 +496,9 @@ class BaseExercise:
         self.current_form_score = 100
         self.avg_form_score = 100
         self.active_feedback_count = 0
-    
+
     def get_status(self) -> Dict[str, Any]:
-        """Mevcut durumu döndür."""
+        """Return the current exercise status."""
         return {
             "name": self.name,
             "display_name": self.display_name,
@@ -509,41 +510,42 @@ class BaseExercise:
             "avg_form_score": self.avg_form_score,
             "form_grade": self.get_form_score_grade()
         }
-    
+
     # ==================== Private Methods ====================
-    
+
     @staticmethod
     def _angle_between(a: Tuple[int, int], b: Tuple[int, int], c: Tuple[int, int]) -> float:
         """
-        Üç nokta arasındaki açıyı hesapla (b köşe noktası).
-        
+        Compute the angle formed at vertex b by points a-b-c.
+
         Args:
-            a, b, c: (x, y) koordinatları
-            
+            a, b, c: (x, y) coordinates
+
         Returns:
-            Derece cinsinden açı
+            Angle in degrees
         """
         ba = np.array(a) - np.array(b)
         bc = np.array(c) - np.array(b)
-        
+
         cos_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
         angle = np.degrees(np.arccos(np.clip(cos_angle, -1.0, 1.0)))
-        
+
         return angle
-    
+
     def _smooth_angle(self, angle: float) -> float:
-        """Moving average ile açı smoothing."""
+        """Smooth the angle with a moving average."""
         self.angle_history.append(angle)
         if len(self.angle_history) > self.smoothing_window:
             self.angle_history.pop(0)
         return np.mean(self.angle_history)
-    
+
     def _safe_eval(self, condition: str, context: Dict[str, Any]) -> bool:
         """
-        Güvenli koşul değerlendirmesi.
-        Sadece izin verilen operatörleri kullanır.
+        Safely evaluate a boolean condition string.
+
+        Only a whitelisted set of names is exposed.
         """
-        # İzin verilen isimler
+        # Whitelisted names
         allowed_names = {
             "True": True,
             "False": False,
@@ -552,21 +554,21 @@ class BaseExercise:
             "max": max,
         }
         allowed_names.update(context)
-        
-        # Tehlikeli yapıları kontrol et
+
+        # Reject dangerous constructs
         dangerous = ["import", "exec", "eval", "__", "open", "file", "os", "sys"]
         for d in dangerous:
             if d in condition:
                 raise ValueError(f"Unsafe condition: {condition}")
-        
+
         return eval(condition, {"__builtins__": {}}, allowed_names)
-    
+
     def _collect_calibration_data(self):
-        """Deprecated – data collected inline in compute_angle."""
+        """Deprecated - data is now collected inline in compute_angle."""
         pass
 
     def _apply_calibration(self):
-        """Compute scale+offset from collected angle samples so user's ROM maps to YAML thresholds."""
+        """Compute scale+offset from collected angle samples so the user's ROM maps to YAML thresholds."""
         if len(self.calibration_angles_all) < 10:
             return
 
@@ -615,23 +617,25 @@ class BaseExercise:
 
 class BilateralExercise(BaseExercise):
     """
-    Çift taraflı egzersizler için genişletilmiş sınıf.
-    Örn: Hammer Curl (sağ ve sol kol ayrı sayılır)
+    Subclass for bilateral (two-sided) exercises.
+
+    Example: Hammer Curl, where the left and right arms are counted
+    independently.
     """
-    
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        
-        # Çift taraflı ayarlar
+
+        # Bilateral settings
         self.bilateral = config.get("bilateral", False)
         self.sides = config.get("sides", ["left", "right"])
-        
-        # Her taraf için ayrı state
+
+        # Independent state per side
         self.current_state_left = None
         self.current_state_right = None
         self.prev_state_left = None
         self.prev_state_right = None
-        
+
         self.last_count_time_left = 0
         self.last_count_time_right = 0
 
@@ -643,32 +647,32 @@ class BilateralExercise(BaseExercise):
         self._flex_penalty_done = False
 
     def compute_bilateral_angles(self, landmarks, frame_shape: Tuple[int, int]) -> Dict[str, float]:
-        """Sol ve sağ taraf açılarını hesapla."""
+        """Compute angles for both the left and right sides."""
         angles = {}
-        
+
         for side in self.sides:
             angle_key = f"{side}_angle"
             angle_def = self.angles.get(side)
-            
+
             if angle_def:
                 points = angle_def["points"]
                 p1 = self.get_landmark_coords(landmarks, points[0], frame_shape)
                 p2 = self.get_landmark_coords(landmarks, points[1], frame_shape)
                 p3 = self.get_landmark_coords(landmarks, points[2], frame_shape)
-                
+
                 angles[angle_key] = self._angle_between(p1, p2, p3)
-        
+
         self._computed_angles.update(angles)
         return angles
-    
+
     def update_bilateral_state(self, context: Dict[str, Any]) -> Tuple[str, str]:
-        """Her iki taraf için durumu güncelle."""
+        """Update the FSM state for both sides."""
         self.prev_state_left = self.current_state_left
         self.prev_state_right = self.current_state_right
-        
+
         trigger_state = self.counter_rule.get("trigger_state")
 
-        # Sol taraf
+        # Left side
         left_context = context.copy()
         left_context["angle"] = context.get("left_angle", 0)
         for state_name in self.state_order:
@@ -684,7 +688,7 @@ class BilateralExercise(BaseExercise):
         if trigger_state and self.prev_state_left == trigger_state and self.current_state_left != trigger_state:
             self.last_left_trigger_left = time.time()
 
-        # Sağ taraf
+        # Right side
         right_context = context.copy()
         right_context["angle"] = context.get("right_angle", 0)
         for state_name in self.state_order:
@@ -701,16 +705,16 @@ class BilateralExercise(BaseExercise):
             self.last_left_trigger_right = time.time()
 
         return self.current_state_left, self.current_state_right
-    
+
     def update_bilateral_counter(self) -> Tuple[bool, bool]:
-        """Her iki taraf için sayacı güncelle."""
+        """Update the counter for both sides."""
         trigger_state = self.counter_rule.get("trigger_state")
         current_time = time.time()
-        
+
         left_counted = False
         right_counted = False
-        
-        # Sol
+
+        # Left
         left_cycle_valid = (
             self.last_left_trigger_left == 0.0 or
             (current_time - self.last_left_trigger_left) >= self.min_rep_duration
@@ -723,7 +727,7 @@ class BilateralExercise(BaseExercise):
             self.last_count_time_left = current_time
             left_counted = True
 
-        # Sağ
+        # Right
         right_cycle_valid = (
             self.last_left_trigger_right == 0.0 or
             (current_time - self.last_left_trigger_right) >= self.min_rep_duration
@@ -736,7 +740,7 @@ class BilateralExercise(BaseExercise):
             self.last_count_time_right = current_time
             right_counted = True
 
-        # Toplam sayaç
+        # Combined counter
         self.counter = self.counter_left + self.counter_right
 
         # Trigger calibration after N reps (#3)
@@ -744,9 +748,9 @@ class BilateralExercise(BaseExercise):
             self._apply_calibration()
 
         return left_counted, right_counted
-    
+
     def reset(self):
-        """Sıfırla."""
+        """Reset all bilateral state."""
         super().reset()
         self.current_state_left = None
         self.current_state_right = None
@@ -759,9 +763,9 @@ class BilateralExercise(BaseExercise):
         self._flex_enter_left   = 0.0
         self._flex_enter_right  = 0.0
         self._flex_penalty_done = False
-    
+
     def get_status(self) -> Dict[str, Any]:
-        """Bilateral durum bilgisi."""
+        """Bilateral status info."""
         status = super().get_status()
         status.update({
             "counter_left": self.counter_left,
@@ -774,24 +778,25 @@ class BilateralExercise(BaseExercise):
 
 class DurationExercise(BaseExercise):
     """
-    Süre bazlı egzersizler için genişletilmiş sınıf.
-    Örn: Plank
+    Subclass for duration-based exercises.
+
+    Example: Plank (hold the target position for N seconds).
     """
-    
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        
-        self.target_duration = config.get("target_duration", 30)  # saniye
+
+        self.target_duration = config.get("target_duration", 30)  # seconds
         self.current_duration = 0
         self.hold_start_time = None
         self.is_holding = False
         self.hold_state = config.get("hold_state", "hold")
-    
+
     def update_duration(self, context: Dict[str, Any]) -> float:
-        """Süreyi güncelle."""
-        # State'i güncelle
+        """Update the hold duration."""
+        # Update the FSM state
         self.update_state(context)
-        
+
         if self.current_state == self.hold_state:
             if not self.is_holding:
                 self.hold_start_time = time.time()
@@ -800,22 +805,22 @@ class DurationExercise(BaseExercise):
                 self.current_duration = time.time() - self.hold_start_time
         else:
             self.is_holding = False
-            # Süre hedefine ulaşıldıysa sayacı artır
+            # Bump the counter if the target duration was reached
             if self.current_duration >= self.target_duration:
                 self.counter += 1
             self.current_duration = 0
-        
+
         return self.current_duration
-    
+
     def reset(self):
-        """Sıfırla."""
+        """Reset all duration state."""
         super().reset()
         self.current_duration = 0
         self.hold_start_time = None
         self.is_holding = False
-    
+
     def get_status(self) -> Dict[str, Any]:
-        """Duration durum bilgisi."""
+        """Duration status info."""
         status = super().get_status()
         status.update({
             "current_duration": self.current_duration,

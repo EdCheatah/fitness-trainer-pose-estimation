@@ -16,7 +16,7 @@ description: "Hip bridge for glute activation"
 angles:
   primary:
     points: [left_shoulder, left_hip, left_knee]
-    description: "Kalça açısı"
+    description: "Hip angle"
 
 state_order:
   - up
@@ -26,15 +26,15 @@ state_order:
 states:
   down:
     condition: "angle < 120"
-    description: "Kalça yerde"
-  
+    description: "Hips on the floor"
+
   lift:
     condition: "angle >= 120 and angle < 165"
-    description: "Kaldırma aşaması"
-  
+    description: "Lifting phase"
+
   up:
     condition: "angle >= 165"
-    description: "Tam uzanım"
+    description: "Full extension"
 
 counter:
   trigger_state: up

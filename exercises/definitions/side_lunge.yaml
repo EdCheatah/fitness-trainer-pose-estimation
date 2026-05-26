@@ -23,11 +23,11 @@ description: "Lateral lunge for inner thigh and hip mobility"
 angles:
   primary:
     points: [left_hip, left_knee, left_ankle]
-    description: "Bükülen bacak diz açısı"
-  
+    description: "Bent-leg knee angle"
+
   standing_leg:
     points: [right_hip, right_knee, right_ankle]
-    description: "Sabit bacak açısı"
+    description: "Stationary leg angle"
 
 state_order:
   - bottom
@@ -37,15 +37,15 @@ state_order:
 states:
   start:
     condition: "angle > 160"
-    description: "Başlangıç - ayaklar geniş"
-  
+    description: "Starting position - feet wide"
+
   descent:
     condition: "angle > 100 and angle <= 160"
-    description: "Yana iniş"
-  
+    description: "Lateral descent"
+
   bottom:
     condition: "angle <= 100"
-    description: "Alt pozisyon"
+    description: "Bottom position"
 
 counter:
   trigger_state: bottom
@@ -56,12 +56,12 @@ min_rep_duration: 1.0
 feedback:
   knee_caving:
     condition: "left_knee_x < left_ankle_x"
-    message: "Diziniz içe kaçıyor!"
+    message: "Knee caving inward!"
     severity: warning
-  
+
   standing_leg_bent:
     condition: "standing_leg_angle < 160"
-    message: "Sabit bacağınızı düz tutun!"
+    message: "Keep your stationary leg straight!"
     severity: warning
 
 calibration:

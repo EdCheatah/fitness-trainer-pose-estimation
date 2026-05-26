@@ -541,7 +541,7 @@ def upload_video():
     if file_size > max_size_bytes:
         return jsonify({
             'success': False, 
-            'error': f'Video çok büyük! Max {MAX_VIDEO_SIZE_MB}MB, yüklenen: {file_size / (1024*1024):.1f}MB'
+            'error': f'Video too large! Max {MAX_VIDEO_SIZE_MB}MB, uploaded: {file_size / (1024*1024):.1f}MB'
         })
     
     # Generate unique ID
@@ -564,7 +564,7 @@ def upload_video():
             os.remove(filepath)  # Delete the uploaded file
             return jsonify({
                 'success': False,
-                'error': f'Video çok uzun! Max {MAX_VIDEO_DURATION_SEC} saniye, yüklenen: {duration:.0f} saniye'
+                'error': f'Video too long! Max {MAX_VIDEO_DURATION_SEC} seconds, uploaded: {duration:.0f} seconds'
             })
     
     # Initialize analysis state

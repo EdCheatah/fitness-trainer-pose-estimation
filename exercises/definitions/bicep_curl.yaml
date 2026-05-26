@@ -4,7 +4,7 @@ display_name: "Bicep Curl"
 type: repetition
 bilateral: true
 
-# Meta bilgiler
+# Meta information
 target_muscles:
   - Biceps
   - Brachialis
@@ -18,17 +18,17 @@ benefits:
   - "Improves arm definition"
 description: "Classic bicep curl with controlled tempo"
 
-# Açı tanımları
+# Angle definitions
 angles:
   left:
     points: [left_shoulder, left_elbow, left_wrist]
-    description: "Sol kol dirsek açısı"
+    description: "Left arm elbow angle"
 
   right:
     points: [right_shoulder, right_elbow, right_wrist]
-    description: "Sağ kol dirsek açısı"
+    description: "Right arm elbow angle"
 
-# Durum makinesi
+# State machine
 state_order:
   - flex
   - curl
@@ -37,37 +37,37 @@ state_order:
 states:
   down:
     condition: "angle > 150"
-    description: "Kol düz - başlangıç pozisyonu"
-  
+    description: "Arm extended - starting position"
+
   curl:
     condition: "angle > 50 and angle <= 150"
-    description: "Kaldırma aşaması"
-  
+    description: "Curling phase"
+
   flex:
     condition: "angle <= 50"
-    description: "En üst nokta - sayaç artırılır"
+    description: "Top position - counter increments"
 
-# Sayaç kuralı
+# Counter rule
 counter:
   trigger_state: flex
   from_state: curl
 
-# Zaman filtresi
+# Time filter
 min_rep_duration: 0.8
 
-# Form geri bildirimleri
+# Form feedback rules
 feedback:
   partial_rep:
     condition: "state == 'flex' and angle > 40"
     message: "Squeeze more at the top!"
     severity: info
 
-# Kalibrasyon
+# Calibration
 calibration:
   enabled: true
   reps: 2
 
-# Görselleştirme
+# Visualization
 visualization:
   lines:
     - points: [left_shoulder, left_elbow]

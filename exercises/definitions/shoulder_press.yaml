@@ -22,19 +22,19 @@ description: "Overhead press for shoulder development"
 angles:
   primary:
     points: [left_hip, left_shoulder, left_elbow]
-    description: "Sol omuz açısı"
-  
+    description: "Left shoulder angle"
+
   right_shoulder:
     points: [right_hip, right_shoulder, right_elbow]
-    description: "Sağ omuz açısı"
-  
+    description: "Right shoulder angle"
+
   left_elbow:
     points: [left_shoulder, left_elbow, left_wrist]
-    description: "Sol dirsek açısı"
-  
+    description: "Left elbow angle"
+
   right_elbow:
     points: [right_shoulder, right_elbow, right_wrist]
-    description: "Sağ dirsek açısı"
+    description: "Right elbow angle"
 
 state_order:
   - top
@@ -44,15 +44,15 @@ state_order:
 states:
   start:
     condition: "angle < 90"
-    description: "Başlangıç - omuz hizası"
-  
+    description: "Starting position - at shoulder level"
+
   press:
     condition: "angle >= 90 and angle < 160"
-    description: "Kaldırma aşaması"
-  
+    description: "Pressing phase"
+
   top:
     condition: "angle >= 160"
-    description: "Üst pozisyon - kollar yukarıda"
+    description: "Top position - arms overhead"
 
 counter:
   trigger_state: top
@@ -63,12 +63,12 @@ min_rep_duration: 0.8
 feedback:
   arching_back:
     condition: "left_shoulder_y < left_hip_y - 100"
-    message: "Sırtınızı kavisletmeyin! Core'u sıkın."
+    message: "Don't arch your back! Brace your core."
     severity: warning
-  
+
   uneven_arms:
     condition: "abs(left_wrist_y - right_wrist_y) > 50"
-    message: "Kollarınızı eşit kaldırın!"
+    message: "Raise both arms evenly!"
     severity: warning
 
 calibration:
@@ -93,7 +93,7 @@ visualization:
     - points: [right_elbow, right_wrist]
       color: [255, 165, 0]
       thickness: 3
-  
+
   circles:
     - point: left_shoulder
       color: [255, 165, 0]

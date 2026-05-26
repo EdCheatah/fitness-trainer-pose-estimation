@@ -16,7 +16,7 @@ description: "Chair or bench dips for tricep strength"
 angles:
   primary:
     points: [left_shoulder, left_elbow, left_wrist]
-    description: "Dirsek açısı"
+    description: "Elbow angle"
 
 state_order:
   - up
@@ -26,15 +26,15 @@ state_order:
 states:
   up:
     condition: "angle > 160"
-    description: "Kollar düz"
-  
+    description: "Arms extended"
+
   lower:
     condition: "angle > 90 and angle <= 160"
-    description: "İniş"
-  
+    description: "Lowering"
+
   down:
     condition: "angle <= 90"
-    description: "Alt pozisyon"
+    description: "Bottom position"
 
 counter:
   trigger_state: up

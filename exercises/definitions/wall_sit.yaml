@@ -15,7 +15,7 @@ description: "Isometric hold against wall for quad endurance"
 angles:
   primary:
     points: [left_hip, left_knee, left_ankle]
-    description: "Diz açısı"
+    description: "Knee angle"
 
 state_order:
   - holding
@@ -25,15 +25,15 @@ state_order:
 states:
   standing:
     condition: "angle > 150"
-    description: "Ayakta"
-  
+    description: "Standing"
+
   lowering:
     condition: "angle > 100 and angle <= 150"
-    description: "İniş"
-  
+    description: "Lowering"
+
   holding:
     condition: "angle <= 100"
-    description: "Tutma pozisyonu"
+    description: "Hold position"
 
 counter:
   trigger_state: holding

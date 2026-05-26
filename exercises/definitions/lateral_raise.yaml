@@ -21,11 +21,11 @@ description: "Side raise for shoulder development"
 angles:
   primary:
     points: [left_hip, left_shoulder, left_elbow]
-    description: "Sol kol-gövde açısı"
-  
+    description: "Left arm-to-torso angle"
+
   right_arm:
     points: [right_hip, right_shoulder, right_elbow]
-    description: "Sağ kol-gövde açısı"
+    description: "Right arm-to-torso angle"
 
 state_order:
   - top
@@ -35,15 +35,15 @@ state_order:
 states:
   start:
     condition: "angle < 30"
-    description: "Başlangıç - kollar yanda"
-  
+    description: "Starting position - arms at sides"
+
   raise:
     condition: "angle >= 30 and angle < 80"
-    description: "Kaldırma aşaması"
-  
+    description: "Lifting phase"
+
   top:
     condition: "angle >= 80"
-    description: "Üst pozisyon - omuz hizası"
+    description: "Top position - arms at shoulder level"
 
 counter:
   trigger_state: top
@@ -54,17 +54,17 @@ min_rep_duration: 0.6
 feedback:
   swinging:
     condition: "abs(left_hip_y - right_hip_y) > 30"
-    message: "Sallanmayın! Kontrollü hareket edin."
+    message: "Don't swing! Move under control."
     severity: warning
-  
+
   too_high:
     condition: "angle > 100"
-    message: "Kolları omuz hizasından yukarı kaldırmayın!"
+    message: "Don't raise arms above shoulder level!"
     severity: warning
-  
+
   bent_elbows:
     condition: "abs(left_shoulder_x - left_wrist_x) < 50"
-    message: "Kollarınızı hafif bükük tutun ama daha fazla düzleştirin!"
+    message: "Keep arms slightly bent but more extended!"
     severity: info
 
 calibration:

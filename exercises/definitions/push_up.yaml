@@ -1,11 +1,11 @@
 # Push-Up Exercise Definition
-# Hedef kaslar: Göğüs, Triceps, Omuzlar
+# Target muscles: Chest, Triceps, Shoulders
 
 name: push_up
 display_name: "Push Up"
 type: repetition
 
-# Meta bilgiler
+# Meta information
 target_muscles:
   - Chest
   - Triceps
@@ -22,17 +22,17 @@ benefits:
   - "No equipment needed"
 description: "Classic push-up exercise for upper body strength"
 
-# Açı tanımları
+# Angle definitions
 angles:
   primary:
     points: [left_shoulder, left_elbow, left_wrist]
-    description: "Sol kol dirsek açısı"
-  
+    description: "Left arm elbow angle"
+
   right_arm:
     points: [right_shoulder, right_elbow, right_wrist]
-    description: "Sağ kol dirsek açısı"
+    description: "Right arm elbow angle"
 
-# Durum makinesi (FSM)
+# Finite State Machine (FSM)
 state_order:
   - ascent
   - descent
@@ -41,42 +41,42 @@ state_order:
 states:
   start:
     condition: "angle > 150"
-    description: "Başlangıç pozisyonu - kollar düz"
-  
+    description: "Starting position - arms extended"
+
   descent:
     condition: "angle > 70 and angle <= 150"
-    description: "İniş aşaması"
-  
+    description: "Descent phase"
+
   ascent:
     condition: "angle <= 70"
-    description: "En alt nokta - sayaç artırılır"
+    description: "Bottom position - counter increments"
 
-# Sayaç kuralı
+# Counter rule
 counter:
   trigger_state: ascent
   from_state: descent
 
-# Zaman filtresi - çok hızlı push-up'ları önler
+# Time filter - prevents reps from counting too fast
 min_rep_duration: 1.0
 
-# Form geri bildirimleri
+# Form feedback rules
 feedback:
   hips_too_high:
     condition: "left_hip_y < left_shoulder_y - 30"
-    message: "Kalçanız çok yukarıda! Vücudunuzu düz tutun."
+    message: "Hips too high! Keep your body in a straight line."
     severity: warning
-  
+
   hips_sagging:
     condition: "left_hip_y > left_shoulder_y + 50"
-    message: "Kalçanız düşüyor! Core kaslarınızı sıkın."
+    message: "Hips sagging! Engage your core."
     severity: warning
-  
+
   arms_too_wide:
     condition: "abs(left_elbow_x - left_shoulder_x) > 100"
-    message: "Kollarınız çok açık!"
+    message: "Arms too wide!"
     severity: info
 
-# Kalibrasyon
+# Calibration
 calibration:
   enabled: true
   reps: 3
@@ -86,7 +86,7 @@ smoothing:
   enabled: true
   window: 3
 
-# Görselleştirme
+# Visualization
 visualization:
   lines:
     - points: [left_shoulder, left_elbow]
@@ -101,7 +101,7 @@ visualization:
     - points: [right_elbow, right_wrist]
       color: [102, 0, 0]
       thickness: 2
-  
+
   circles:
     - point: left_shoulder
       color: [0, 0, 255]
@@ -121,7 +121,7 @@ visualization:
     - point: right_wrist
       color: [102, 0, 0]
       radius: 8
-  
+
   angle_display:
     - angle: primary
       position: left_elbow

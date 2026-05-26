@@ -1,11 +1,11 @@
 # Squat Exercise Definition
-# Hedef kaslar: Quadriceps, Gluteus, Hamstrings
+# Target muscles: Quadriceps, Gluteus, Hamstrings
 
 name: squat
 display_name: "Squat"
 type: repetition
 
-# Meta bilgiler
+# Meta information
 target_muscles:
   - Quadriceps
   - Gluteus
@@ -21,18 +21,18 @@ benefits:
   - "Strengthens core muscles"
 description: "Basic squat exercise targeting lower body muscles"
 
-# Açı tanımları
+# Angle definitions
 angles:
   primary:
     points: [left_shoulder, left_hip, left_knee]
-    description: "Sol taraf gövde-bacak açısı"
-  
+    description: "Left side torso-leg angle"
+
   right_side:
     points: [right_shoulder, right_hip, right_knee]
-    description: "Sağ taraf gövde-bacak açısı"
+    description: "Right side torso-leg angle"
 
-# Durum makinesi (FSM)
-# State sırası önemli - ilk eşleşen state aktif olur
+# Finite State Machine (FSM)
+# State order matters - the first matching state wins
 state_order:
   - ascent
   - descent
@@ -41,52 +41,52 @@ state_order:
 states:
   start:
     condition: "angle > 165"
-    description: "Başlangıç pozisyonu - dik duruş"
-  
+    description: "Starting position - upright stance"
+
   descent:
     condition: "angle > 90 and angle <= 165"
-    description: "İniş aşaması"
-  
+    description: "Descent phase"
+
   ascent:
     condition: "angle <= 90"
-    description: "En alt nokta - sayaç artırılır"
+    description: "Bottom position - counter increments"
 
-# Sayaç kuralı
+# Counter rule
 counter:
   trigger_state: ascent
-  from_state: descent  # Sadece descent'ten geldiyse say
+  from_state: descent  # Count only when coming from descent
 
-# Zaman filtresi
-min_rep_duration: 0.8  # Minimum tekrar süresi (saniye)
+# Time filter
+min_rep_duration: 0.8  # Minimum rep duration (seconds)
 
-# Form geri bildirimleri
+# Form feedback rules
 feedback:
   knees_caving:
     condition: "left_knee_x < left_ankle_x - 20"
-    message: "Dizler içe kaçıyor! Dizleri ayak hizasında tutun."
+    message: "Knees caving in! Keep knees aligned with your toes."
     severity: warning
-  
+
   leaning_forward:
     condition: "left_shoulder_x > left_hip_x + 50"
-    message: "Çok öne eğiliyorsunuz! Göğsünüzü dik tutun."
+    message: "Leaning too far forward! Keep your chest up."
     severity: warning
-  
+
   not_deep_enough:
     condition: "angle > 100 and angle < 130"
-    message: "Daha derine inin!"
+    message: "Go deeper!"
     severity: info
 
-# Kalibrasyon ayarları
+# Calibration settings
 calibration:
   enabled: true
   reps: 3
 
-# Smoothing ayarları
+# Smoothing settings
 smoothing:
   enabled: true
   window: 3
 
-# Görselleştirme ayarları
+# Visualization settings
 visualization:
   lines:
     - points: [left_shoulder, left_hip]
@@ -101,7 +101,7 @@ visualization:
     - points: [right_hip, right_knee]
       color: [51, 153, 255]
       thickness: 2
-  
+
   circles:
     - point: left_shoulder
       color: [178, 102, 255]
@@ -121,7 +121,7 @@ visualization:
     - point: right_knee
       color: [51, 153, 255]
       radius: 8
-  
+
   angle_display:
     - angle: primary
       position: left_knee

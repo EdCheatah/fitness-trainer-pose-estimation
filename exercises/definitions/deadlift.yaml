@@ -16,7 +16,7 @@ description: "Hip hinge movement for posterior chain"
 angles:
   primary:
     points: [left_shoulder, left_hip, left_knee]
-    description: "Kalça menteşe açısı"
+    description: "Hip hinge angle"
 
 state_order:
   - up
@@ -26,15 +26,15 @@ state_order:
 states:
   up:
     condition: "angle > 165"
-    description: "Dik duruş"
-  
+    description: "Upright stance"
+
   hinge:
     condition: "angle > 100 and angle <= 165"
-    description: "Eğilme aşaması"
-  
+    description: "Hinging phase"
+
   down:
     condition: "angle <= 100"
-    description: "Alt pozisyon"
+    description: "Bottom position"
 
 counter:
   trigger_state: up

@@ -17,7 +17,7 @@ description: "Dynamic cardio with alternating knee drives"
 angles:
   primary:
     points: [left_shoulder, left_hip, left_knee]
-    description: "Kalça açısı"
+    description: "Hip angle"
 
 state_order:
   - tucked
@@ -27,15 +27,15 @@ state_order:
 states:
   extended:
     condition: "angle > 160"
-    description: "Bacak düz"
-  
+    description: "Leg extended"
+
   driving:
     condition: "angle > 90 and angle <= 160"
-    description: "Diz ileri"
-  
+    description: "Knee driving forward"
+
   tucked:
     condition: "angle <= 90"
-    description: "Diz göğüse"
+    description: "Knee to chest"
 
 counter:
   trigger_state: tucked

@@ -17,7 +17,7 @@ description: "Running in place with high knee lifts"
 angles:
   primary:
     points: [left_shoulder, left_hip, left_knee]
-    description: "Sol kalça açısı"
+    description: "Left hip angle"
 
 state_order:
   - up
@@ -27,15 +27,15 @@ state_order:
 states:
   down:
     condition: "angle > 150"
-    description: "Bacak düz"
-  
+    description: "Leg extended"
+
   lift:
     condition: "angle > 100 and angle <= 150"
-    description: "Kaldırma"
-  
+    description: "Lifting"
+
   up:
     condition: "angle <= 100"
-    description: "Diz yukarıda"
+    description: "Knee high"
 
 counter:
   trigger_state: up

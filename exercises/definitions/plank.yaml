@@ -1,20 +1,20 @@
 # Plank Exercise Definition
-# Süre bazlı egzersiz
+# Duration-based exercise
 
 name: plank
 display_name: "Plank"
-type: duration  # Süre bazlı egzersiz
+type: duration  # Duration-based exercise
 
-# Meta bilgiler
+# Meta information
 target_muscles:
   - Core
   - Shoulders
   - Back
 equipment: "Bodyweight"
 difficulty: beginner
-default_reps: 3  # 3 set
+default_reps: 3  # 3 sets
 default_sets: 1
-target_duration: 30  # Her set 30 saniye
+target_duration: 30  # 30 seconds per set
 rest_time: "30 seconds"
 benefits:
   - "Strengthens core muscles"
@@ -22,20 +22,20 @@ benefits:
   - "Builds shoulder stability"
 description: "Isometric plank hold for core strength"
 
-# Süre bazlı ayarlar
-hold_state: hold  # Hangi state'de süre sayılacak
+# Duration settings
+hold_state: hold  # State during which the duration is counted
 
-# Açı tanımları
+# Angle definitions
 angles:
   body_line:
     points: [left_shoulder, left_hip, left_ankle]
-    description: "Vücut hattı açısı"
-  
+    description: "Body-line angle"
+
   arm_angle:
     points: [left_shoulder, left_elbow, left_wrist]
-    description: "Kol açısı"
+    description: "Arm angle"
 
-# Durum makinesi
+# State machine
 state_order:
   - hold
   - setup
@@ -44,31 +44,31 @@ state_order:
 states:
   rest:
     condition: "body_line_angle < 140"
-    description: "Dinlenme pozisyonu"
-  
+    description: "Rest position"
+
   setup:
     condition: "body_line_angle >= 140 and body_line_angle < 165"
-    description: "Hazırlık pozisyonu"
-  
+    description: "Setup position"
+
   hold:
     condition: "body_line_angle >= 165"
-    description: "Plank pozisyonu - süre sayılır"
+    description: "Plank position - duration counted"
 
-# Form geri bildirimleri
+# Form feedback rules
 feedback:
   hips_too_high:
     condition: "body_line_angle > 185"
-    message: "Kalçanız çok yukarıda! Vücudunuzu düz hale getirin."
+    message: "Hips too high! Straighten your body."
     severity: warning
-  
+
   hips_sagging:
     condition: "body_line_angle < 165 and body_line_angle > 140"
-    message: "Kalçanız düşüyor! Core kaslarınızı sıkın."
+    message: "Hips sagging! Engage your core."
     severity: warning
-  
+
   good_form:
     condition: "body_line_angle >= 170 and body_line_angle <= 180"
-    message: "Mükemmel form! Devam edin."
+    message: "Perfect form! Keep going."
     severity: info
 
 calibration:
@@ -92,7 +92,7 @@ visualization:
     - points: [left_elbow, left_wrist]
       color: [0, 200, 255]
       thickness: 2
-  
+
   circles:
     - point: left_shoulder
       color: [0, 255, 0]

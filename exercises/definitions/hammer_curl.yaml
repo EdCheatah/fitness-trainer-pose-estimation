@@ -1,12 +1,12 @@
 # Hammer Curl Exercise Definition
-# Çift taraflı egzersiz - sağ ve sol kol ayrı sayılır
+# Bilateral exercise - left and right arms are counted separately.
 
 name: hammer_curl
 display_name: "Hammer Curl"
 type: repetition
-bilateral: true  # Çift taraflı egzersiz
+bilateral: true  # Bilateral exercise
 
-# Meta bilgiler
+# Meta information
 target_muscles:
   - Biceps
   - Brachialis
@@ -22,31 +22,31 @@ benefits:
   - "Targets brachialis for arm thickness"
 description: "Dumbbell hammer curl for bicep development"
 
-# Çift taraflı ayarlar
+# Bilateral settings
 sides:
   - left
   - right
 
-# Açı tanımları - her iki taraf için
+# Angle definitions - one per side
 angles:
   left:
     points: [left_shoulder, left_elbow, left_wrist]
-    description: "Sol kol dirsek açısı"
-  
+    description: "Left arm elbow angle"
+
   right:
     points: [right_shoulder, right_elbow, right_wrist]
-    description: "Sağ kol dirsek açısı"
-  
-  # Form kontrolü için ek açılar
+    description: "Right arm elbow angle"
+
+  # Extra angles used for form checks
   left_alignment:
     points: [left_elbow, left_shoulder, left_hip]
-    description: "Sol kol hizalama açısı"
-  
+    description: "Left arm alignment angle"
+
   right_alignment:
     points: [right_elbow, right_shoulder, right_hip]
-    description: "Sağ kol hizalama açısı"
+    description: "Right arm alignment angle"
 
-# Durum makinesi
+# State machine
 state_order:
   - down
   - up
@@ -55,37 +55,37 @@ state_order:
 states:
   flex:
     condition: "angle > 155"
-    description: "Başlangıç pozisyonu - kol düz"
-  
+    description: "Starting position - arm extended"
+
   up:
     condition: "angle > 47 and angle <= 155"
-    description: "Kaldırma aşaması"
-  
+    description: "Lifting phase"
+
   down:
     condition: "angle <= 47"
-    description: "En üst nokta - sayaç artırılır"
+    description: "Top position - counter increments"
 
-# Sayaç kuralı
+# Counter rule
 counter:
   trigger_state: down
   from_state: up
 
-# Zaman filtresi
+# Time filter
 min_rep_duration: 0.8
 
-# Form geri bildirimleri
+# Form feedback rules
 feedback:
   too_fast:
     condition: "angle < 40"
     message: "Good squeeze! Hold briefly at the top."
     severity: info
-  
+
   partial_rep:
     condition: "angle > 160"
     message: "Extend fully between reps."
     severity: warning
 
-# Kalibrasyon
+# Calibration
 calibration:
   enabled: true
   reps: 3
@@ -95,7 +95,7 @@ smoothing:
   enabled: true
   window: 3
 
-# Görselleştirme
+# Visualization
 visualization:
   lines:
     - points: [left_shoulder, left_elbow]
@@ -110,7 +110,7 @@ visualization:
     - points: [right_elbow, right_wrist]
       color: [0, 0, 255]
       thickness: 4
-  
+
   circles:
     - point: left_shoulder
       color: [0, 0, 255]
@@ -130,7 +130,7 @@ visualization:
     - point: right_wrist
       color: [0, 0, 255]
       radius: 8
-  
+
   angle_display:
     - angle: left
       position: left_elbow
@@ -140,7 +140,7 @@ visualization:
       position: right_elbow
       offset: [10, -10]
       label: "Right Angle"
-  
+
   gauge_meters:
     - angle: right
       position: [1200, 80]

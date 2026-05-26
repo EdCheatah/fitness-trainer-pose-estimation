@@ -1,11 +1,11 @@
 # Lunge Exercise Definition
-# Hedef kaslar: Quadriceps, Gluteus, Hamstrings
+# Target muscles: Quadriceps, Gluteus, Hamstrings
 
 name: lunge
 display_name: "Lunge"
 type: repetition
 
-# Meta bilgiler
+# Meta information
 target_muscles:
   - Quadriceps
   - Gluteus
@@ -22,21 +22,21 @@ benefits:
   - "Enhances hip flexibility"
 description: "Forward lunge for leg strength and balance"
 
-# Açı tanımları
+# Angle definitions
 angles:
   primary:
     points: [left_hip, left_knee, left_ankle]
-    description: "Ön bacak diz açısı"
-  
+    description: "Front leg knee angle"
+
   back_leg:
     points: [right_hip, right_knee, right_ankle]
-    description: "Arka bacak diz açısı"
-  
+    description: "Back leg knee angle"
+
   torso:
     points: [left_shoulder, left_hip, left_knee]
-    description: "Gövde açısı"
+    description: "Torso angle"
 
-# Durum makinesi
+# State machine
 state_order:
   - bottom
   - descent
@@ -45,38 +45,38 @@ state_order:
 states:
   start:
     condition: "angle > 160"
-    description: "Başlangıç - dik duruş"
-  
+    description: "Starting position - upright stance"
+
   descent:
     condition: "angle > 100 and angle <= 160"
-    description: "İniş aşaması"
-  
+    description: "Descent phase"
+
   bottom:
     condition: "angle <= 100"
-    description: "Alt pozisyon - 90 derece"
+    description: "Bottom position - 90 degrees"
 
-# Sayaç kuralı
+# Counter rule
 counter:
   trigger_state: bottom
   from_state: descent
 
 min_rep_duration: 1.0
 
-# Form geri bildirimleri
+# Form feedback rules
 feedback:
   knee_over_toe:
     condition: "left_knee_x > left_ankle_x + 50"
-    message: "Diziniz ayak parmağınızı geçiyor!"
+    message: "Knee going past your toes!"
     severity: warning
-  
+
   torso_leaning:
     condition: "torso_angle < 70"
-    message: "Gövdenizi dik tutun!"
+    message: "Keep your torso upright!"
     severity: warning
-  
+
   back_knee_touch:
     condition: "right_knee_y > right_ankle_y - 20"
-    message: "Arka diz yere değmemeli!"
+    message: "Back knee should not touch the floor!"
     severity: info
 
 calibration:
@@ -101,7 +101,7 @@ visualization:
     - points: [right_knee, right_ankle]
       color: [51, 153, 255]
       thickness: 2
-  
+
   circles:
     - point: left_hip
       color: [178, 102, 255]

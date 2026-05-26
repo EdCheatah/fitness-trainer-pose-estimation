@@ -15,7 +15,7 @@ description: "Standing calf raises for lower leg strength"
 angles:
   primary:
     points: [left_hip, left_knee, left_ankle]
-    description: "Bacak açısı"
+    description: "Leg angle"
 
 state_order:
   - up
@@ -25,15 +25,15 @@ state_order:
 states:
   down:
     condition: "angle > 165"
-    description: "Topuklar yerde"
-  
+    description: "Heels on the floor"
+
   raise:
     condition: "angle > 155 and angle <= 165"
-    description: "Kaldırma aşaması"
-  
+    description: "Lifting phase"
+
   up:
     condition: "angle <= 155"
-    description: "En üst nokta"
+    description: "Top position"
 
 counter:
   trigger_state: up
