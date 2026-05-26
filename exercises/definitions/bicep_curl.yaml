@@ -20,11 +20,11 @@ description: "Classic bicep curl with controlled tempo"
 
 # Açı tanımları
 angles:
-  primary:
+  left:
     points: [left_shoulder, left_elbow, left_wrist]
     description: "Sol kol dirsek açısı"
-  
-  right_arm:
+
+  right:
     points: [right_shoulder, right_elbow, right_wrist]
     description: "Sağ kol dirsek açısı"
 
@@ -58,7 +58,7 @@ min_rep_duration: 0.8
 # Form geri bildirimleri
 feedback:
   partial_rep:
-    condition: "angle > 60"
+    condition: "state == 'flex' and angle > 40"
     message: "Squeeze more at the top!"
     severity: info
 
@@ -75,4 +75,10 @@ visualization:
       thickness: 4
     - points: [left_elbow, left_wrist]
       color: [0, 0, 255]
+      thickness: 4
+    - points: [right_shoulder, right_elbow]
+      color: [102, 0, 0]
+      thickness: 4
+    - points: [right_elbow, right_wrist]
+      color: [102, 0, 0]
       thickness: 4

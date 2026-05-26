@@ -5,6 +5,7 @@ Bu modül, BaseExercise sınıfını frame işleme döngüsünde
 kolayca kullanılabilir hale getirir.
 """
 
+import time
 import cv2
 import numpy as np
 from typing import Dict, Optional, Tuple, List, Any
@@ -26,10 +27,13 @@ class ExerciseEngine:
         result = engine.process_frame(frame, landmarks)
     """
     
+    READY_GRACE_SECS = 1.5  # wait this long after body appears before counting reps
+
     def __init__(self):
         self.exercise: Optional[BaseExercise] = None
         self.exercise_name: str = None
         self._exercise_info: Dict = {}
+        self._body_visible_since: Optional[float] = None
         
     def set_exercise(self, exercise_name: str) -> bool:
         """
@@ -68,7 +72,19 @@ class ExerciseEngine:
         """
         if not self.exercise or not landmarks:
             return {"success": False, "error": "No exercise or landmarks"}
-        
+
+        if not self.exercise.key_landmarks_visible(landmarks):
+            self._body_visible_since = None  # reset grace timer when body leaves
+            return {"success": False, "error": "Key landmarks not visible"}
+
+        # Grace period: ignore first N seconds after body reappears to avoid ghost reps
+        now = time.time()
+        if self._body_visible_since is None:
+            self._body_visible_since = now
+        grace_remaining = self.READY_GRACE_SECS - (now - self._body_visible_since)
+        if grace_remaining > 0:
+            return {"success": False, "error": "Getting ready", "grace_remaining": grace_remaining}
+
         frame_shape = frame.shape[:2]  # (height, width)
         
         result = {
@@ -162,15 +178,81 @@ class ExerciseEngine:
         
         # Her iki taraf için state güncelle
         exercise.update_bilateral_state(context)
-        
-        # Sayaçları güncelle
+
+        trigger_state      = exercise.counter_rule.get("trigger_state")
+        squeeze_threshold  = 40
+        min_flex_hold_secs = 0.2  # ignore leaving_flex events shorter than this (noise filter)
+
+        left_angle  = context.get("left_angle",  180)
+        right_angle = context.get("right_angle", 180)
+        now = time.time()
+
+        # Per-side flex transitions
+        entering_flex_left  = (exercise.prev_state_left  != trigger_state and exercise.current_state_left  == trigger_state)
+        entering_flex_right = (exercise.prev_state_right != trigger_state and exercise.current_state_right == trigger_state)
+        leaving_flex_left   = (exercise.prev_state_left  == trigger_state and exercise.current_state_left  != trigger_state)
+        leaving_flex_right  = (exercise.prev_state_right == trigger_state and exercise.current_state_right != trigger_state)
+
+        # On entry: reset per-side min tracker, record entry time, clear penalty flag
+        if entering_flex_left:
+            exercise._flex_min_left     = left_angle
+            exercise._flex_enter_left   = now
+            exercise._flex_penalty_done = False
+        if entering_flex_right:
+            exercise._flex_min_right    = right_angle
+            exercise._flex_enter_right  = now
+            exercise._flex_penalty_done = False
+
+        # Track minimum angle per side independently while in flex
+        if exercise.current_state_left == trigger_state:
+            exercise._flex_min_left  = min(getattr(exercise, '_flex_min_left',  180), left_angle)
+        if exercise.current_state_right == trigger_state:
+            exercise._flex_min_right = min(getattr(exercise, '_flex_min_right', 180), right_angle)
+
+        # Update counters
         left_counted, right_counted = exercise.update_bilateral_counter()
-        
-        # Feedback kontrol
+
+        # On leaving flex: evaluate squeeze (once per rep, only if held long enough to filter noise)
+        leaving_flex = leaving_flex_left or leaving_flex_right
+        if leaving_flex and not getattr(exercise, '_flex_penalty_done', False):
+            hold_left  = now - getattr(exercise, '_flex_enter_left',  now)
+            hold_right = now - getattr(exercise, '_flex_enter_right', now)
+            long_enough = (leaving_flex_left  and hold_left  >= min_flex_hold_secs) or \
+                          (leaving_flex_right and hold_right >= min_flex_hold_secs)
+
+            if long_enough:
+                # Check the worst-performing arm (highest min angle = least contracted)
+                worst_min = 0
+                if leaving_flex_left:
+                    worst_min = max(worst_min, getattr(exercise, '_flex_min_left',  squeeze_threshold + 1))
+                if leaving_flex_right:
+                    worst_min = max(worst_min, getattr(exercise, '_flex_min_right', squeeze_threshold + 1))
+                if worst_min > squeeze_threshold:
+                    exercise.current_form_score = max(0, exercise.current_form_score - 10)
+                exercise._flex_penalty_done = True
+
+            exercise.start_rep_tracking()
+
+        # End rep tracking when rep is counted
+        if left_counted or right_counted:
+            exercise.end_rep_tracking()
+
+        # Feedback kontrol - evaluate per side so "angle" is defined
         context["counter_left"] = exercise.counter_left
         context["counter_right"] = exercise.counter_right
-        feedback = exercise.check_feedback(context)
-        
+        seen_fb = set()
+        feedback = []
+        for side in ["left", "right"]:
+            side_ctx = context.copy()
+            side_ctx["angle"] = context.get(f"{side}_angle", 0)
+            side_ctx["state"] = exercise.current_state_left if side == "left" else exercise.current_state_right
+            for fb in exercise.check_feedback(side_ctx):
+                if fb["name"] not in seen_fb:
+                    seen_fb.add(fb["name"])
+                    feedback.append(fb)
+
+        form_score = exercise.current_form_score
+
         # Sonuçları doldur
         result.update({
             "counter": exercise.counter,
@@ -180,7 +262,10 @@ class ExerciseEngine:
             "state_right": exercise.current_state_right,
             "angles": exercise._computed_angles.copy(),
             "feedback": feedback,
-            "counted": left_counted or right_counted
+            "counted": left_counted or right_counted,
+            "form_score": form_score,
+            "avg_form_score": exercise.avg_form_score,
+            "form_grade": exercise.get_form_score_grade()
         })
         
         return result

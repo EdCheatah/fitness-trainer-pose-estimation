@@ -75,6 +75,11 @@ sets_completed = 0
 sets_goal = 0
 workout_start_time = None
 
+# Rest between sets
+REST_DURATION = 5  # seconds
+in_rest_period = False
+rest_start_time = None
+
 # FPS tracking
 fps_counter = 0
 fps_start_time = time.time()
@@ -98,8 +103,8 @@ def initialize_camera():
             if not camera.isOpened():
                 raise Exception("Camera could not be opened. Please check your device.")
             # Optimize camera settings
-            camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
             camera.set(cv2.CAP_PROP_FPS, 30)
             print("[INFO] Camera initialized successfully.")
         except Exception as e:
@@ -129,6 +134,7 @@ def generate_frames():
     global output_frame, lock, exercise_running, exercise_engine
     global exercise_goal, sets_completed, sets_goal
     global fps_counter, fps_start_time, current_fps
+    global in_rest_period, rest_start_time
 
     # NO PoseEstimator here - only create when exercise starts
     pose_estimator = None
@@ -172,38 +178,64 @@ def generate_frames():
             if pose_estimator is None:
                 pose_estimator = get_pose_estimator()
 
-            # Process with pose estimation
-            results = pose_estimator.estimate_pose(frame, exercise_engine.exercise_name)
+            # --- REST PERIOD between sets ---
+            if in_rest_period:
+                elapsed_rest = time.time() - rest_start_time
+                remaining = max(0, REST_DURATION - int(elapsed_rest))
+                if elapsed_rest >= REST_DURATION:
+                    in_rest_period = False
+                else:
+                    draw_text_with_background(
+                        frame, f"REST: {remaining}s",
+                        (frame.shape[1]//2 - 80, frame.shape[0]//2),
+                        cv2.FONT_HERSHEY_DUPLEX, 1.2, (255, 255, 255), (0, 0, 180), 2)
+                    draw_text_with_background(
+                        frame, f"Set {sets_completed} done  |  Next: Set {sets_completed + 1}",
+                        (frame.shape[1]//2 - 160, frame.shape[0]//2 + 55),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), (50, 50, 50), 1)
+            else:
+                # Process with pose estimation
+                results = pose_estimator.estimate_pose(frame, exercise_engine.exercise_name)
 
-            if results.pose_landmarks:
-                # NEW: Use Exercise Engine to process frame
-                result = exercise_engine.process_frame(frame, results.pose_landmarks.landmark)
+                if results.pose_landmarks:
+                    # NEW: Use Exercise Engine to process frame
+                    result = exercise_engine.process_frame(frame, results.pose_landmarks.landmark)
 
-                if result["success"]:
-                    # Draw status overlay
-                    exercise_engine.draw_status_overlay(frame, exercise_goal, sets_goal, sets_completed)
+                    if not result["success"] and result.get("error") == "Key landmarks not visible":
+                        draw_text_with_background(
+                            frame, "Move into frame — body not fully visible",
+                            (frame.shape[1]//2 - 220, frame.shape[0] - 50),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), (0, 0, 160), 1)
+                    elif not result["success"] and result.get("error") == "Getting ready":
+                        secs = result.get("grace_remaining", 0)
+                        draw_text_with_background(
+                            frame, f"Get ready... {secs:.1f}s",
+                            (frame.shape[1]//2 - 120, frame.shape[0] - 50),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), (0, 130, 0), 1)
 
-                    # Draw Form Score
-                    exercise_engine.draw_form_score(frame)
+                    if result["success"]:
+                        # Draw status overlay
+                        exercise_engine.draw_status_overlay(frame, exercise_goal, sets_goal, sets_completed)
 
-                    # Check if rep goal is reached for current set
-                    current_counter = exercise_engine.get_counter()
-                    if current_counter >= exercise_goal:
-                        sets_completed += 1
-                        exercise_engine.reset()
+                        # Draw Form Score
+                        exercise_engine.draw_form_score(frame)
 
-                        # Check if all sets are completed
-                        if sets_completed >= sets_goal:
-                            exercise_running = False
-                            # Final form score display
-                            avg_score = exercise_engine.exercise.avg_form_score if exercise_engine.exercise else 0
-                            draw_text_with_background(frame, f"WORKOUT COMPLETE! Avg Score: {avg_score}", 
-                                                    (frame.shape[1]//2 - 200, frame.shape[0]//2),
-                                                    cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), (0, 200, 0), 2)
-                        else:
-                            draw_text_with_background(frame, f"SET {sets_completed} COMPLETE! Rest for 30 sec", 
-                                                    (frame.shape[1]//2 - 200, frame.shape[0]//2),
-                                                    cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), (0, 0, 200), 2)
+                        # Check if rep goal is reached for current set
+                        current_counter = exercise_engine.get_counter()
+                        if current_counter >= exercise_goal:
+                            sets_completed += 1
+                            exercise_engine.reset()
+
+                            # Check if all sets are completed
+                            if sets_completed >= sets_goal:
+                                exercise_running = False
+                                avg_score = exercise_engine.exercise.avg_form_score if exercise_engine.exercise else 0
+                                draw_text_with_background(frame, f"WORKOUT COMPLETE! Avg Score: {avg_score}",
+                                                        (frame.shape[1]//2 - 200, frame.shape[0]//2),
+                                                        cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), (0, 200, 0), 2)
+                            else:
+                                in_rest_period = True
+                                rest_start_time = time.time()
         else:
             # Display welcome message if no exercise is running
             cv2.putText(frame, "Select an exercise to begin", (frame.shape[1]//2 - 180, frame.shape[0]//2),
@@ -294,12 +326,14 @@ def start_exercise():
     """Start a new exercise based on user selection"""
     global exercise_running, exercise_engine, current_exercise_type
     global exercise_goal, sets_completed, sets_goal
-    global workout_start_time
-    
+    global workout_start_time, in_rest_period, rest_start_time
+
     data = request.json
     exercise_type = data.get('exercise_type')
     sets_goal = int(data.get('sets', 3))
     exercise_goal = int(data.get('reps', 10))
+    in_rest_period = False
+    rest_start_time = None
     
     # Initialize camera if not already done
     initialize_camera()
@@ -361,22 +395,25 @@ def stop_exercise():
 def get_status():
     """Return current exercise status"""
     global exercise_engine, sets_completed, exercise_goal, sets_goal, exercise_running
-    
+    global in_rest_period, rest_start_time
+
     status = {
         'exercise_running': exercise_running,
         'current_reps': exercise_engine.get_counter() if exercise_engine.exercise else 0,
         'current_set': sets_completed + 1 if exercise_running else 0,
         'total_sets': sets_goal,
-        'rep_goal': exercise_goal
+        'rep_goal': exercise_goal,
+        'in_rest': in_rest_period,
+        'rest_remaining': max(0, REST_DURATION - int(time.time() - rest_start_time)) if in_rest_period and rest_start_time else 0,
     }
-    
+
     # Add form score if exercise is running
     if exercise_running and exercise_engine.exercise:
         ex_status = exercise_engine.get_status()
         status['form_score'] = ex_status.get('form_score', 100)
         status['avg_form_score'] = ex_status.get('avg_form_score', 100)
         status['form_grade'] = ex_status.get('form_grade', 'A')
-    
+
     return jsonify(status)
 
 @app.route('/exercises', methods=['GET'])
@@ -772,7 +809,7 @@ if __name__ == '__main__':
         print("-" * 50)
         print("🌐 Open http://127.0.0.1:5000 in your browser")
         print("=" * 50)
-        app.run(debug=False, threaded=False, use_reloader=False)
+        app.run(debug=False, threaded=True, use_reloader=False)
     except Exception as e:
         logger.error(f"Failed to start application: {e}")
         traceback.print_exc()

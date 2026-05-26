@@ -12,6 +12,7 @@ Features:
 - Zaman filtreleme (yanlış sayımı önler)
 """
 
+import re
 import numpy as np
 import time
 from typing import Dict, List, Optional, Tuple, Any
@@ -96,9 +97,19 @@ class BaseExercise:
         self.smoothing_enabled = config.get("smoothing", {}).get("enabled", False)
         self.smoothing_window = config.get("smoothing", {}).get("window", 5)
         self.angle_history = []
-        
+
         # Computed angles cache
         self._computed_angles = {}
+
+        # Calibration runtime
+        self.calibration_scale = 1.0
+        self.calibration_offset_val = 0.0
+        self.calibration_angles_all = []
+
+        # Cycle timing (#2 – rep speed detection)
+        self.last_left_trigger_time = 0.0
+        self.last_left_trigger_left = 0.0
+        self.last_left_trigger_right = 0.0
         
         # ==================== FORM SCORE SYSTEM ====================
         # Form Score (0-100) hesaplama için değişkenler
@@ -159,14 +170,22 @@ class BaseExercise:
         p3 = self.get_landmark_coords(landmarks, points[2], frame_shape)
         
         angle = self._angle_between(p1, p2, p3)
-        
+
         # Smoothing uygula
         if self.smoothing_enabled:
             angle = self._smooth_angle(angle)
-        
+
+        # Collect calibration samples (#3)
+        if self.calibration_enabled and not self.is_calibrated:
+            self.calibration_angles_all.append(angle)
+
+        # Apply calibration scale+offset if calibrated
+        if self.is_calibrated and self.calibration_scale != 1.0:
+            angle = max(0.0, min(180.0, self.calibration_scale * angle + self.calibration_offset_val))
+
         # Cache'e kaydet
         self._computed_angles[angle_name] = angle
-        
+
         return angle
     
     def compute_all_angles(self, landmarks, frame_shape: Tuple[int, int]) -> Dict[str, float]:
@@ -206,7 +225,21 @@ class BaseExercise:
                 pass
         
         return context
-    
+
+    def key_landmarks_visible(self, landmarks, min_visibility: float = 0.5) -> bool:
+        """Return False if any landmark used in angle calculations is not visible enough."""
+        for angle_def in self.angles.values():
+            for point_name in angle_def.get("points", []):
+                idx = self.LANDMARK_MAP.get(point_name)
+                if idx is None:
+                    continue
+                try:
+                    if landmarks[idx].visibility < min_visibility:
+                        return False
+                except (IndexError, AttributeError):
+                    return False
+        return True
+
     def update_state(self, context: Dict[str, Any]) -> str:
         """
         Mevcut durumu güncelle (FSM).
@@ -218,7 +251,7 @@ class BaseExercise:
             Yeni durum adı
         """
         self.prev_state = self.current_state
-        
+
         # State order'a göre kontrol et (öncelik sırası)
         for state_name in self.state_order:
             state_def = self.states.get(state_name, {})
@@ -231,9 +264,14 @@ class BaseExercise:
                     break
             except Exception as e:
                 print(f"State condition error ({state_name}): {e}")
-        
+
+        # Track when we leave the trigger state (rep cycle start)
+        trigger_state = self.counter_rule.get("trigger_state")
+        if trigger_state and self.prev_state == trigger_state and self.current_state != trigger_state:
+            self.last_left_trigger_time = time.time()
+
         return self.current_state
-    
+
     def update_counter(self) -> bool:
         """
         Sayacı güncelle.
@@ -256,17 +294,23 @@ class BaseExercise:
         # Zaman filtresi
         current_time = time.time()
         time_valid = (current_time - self.last_count_time) >= self.min_rep_duration
-        
-        if state_changed and reached_trigger and from_valid and time_valid:
+
+        # Cycle duration check (#2): full rep cycle must take >= min_rep_duration
+        cycle_valid = (
+            self.last_left_trigger_time == 0.0 or
+            (current_time - self.last_left_trigger_time) >= self.min_rep_duration
+        )
+
+        if state_changed and reached_trigger and from_valid and time_valid and cycle_valid:
             self.counter += 1
             self.last_count_time = current_time
-            
-            # Kalibrasyon verisi topla
-            if self.calibration_enabled and not self.is_calibrated:
-                self._collect_calibration_data()
-            
+
+            # Trigger calibration after N reps (#3)
+            if self.calibration_enabled and not self.is_calibrated and self.counter >= self.calibration_reps:
+                self._apply_calibration()
+
             return True
-        
+
         return False
     
     def check_feedback(self, context: Dict[str, Any]) -> List[str]:
@@ -441,6 +485,9 @@ class BaseExercise:
         self.last_count_time = 0
         self.angle_history = []
         self._computed_angles = {}
+        self.last_left_trigger_time = 0.0
+        self.last_left_trigger_left = 0.0
+        self.last_left_trigger_right = 0.0
         # Form score reset
         self.rep_start_time = None
         self.rep_durations = []
@@ -515,30 +562,55 @@ class BaseExercise:
         return eval(condition, {"__builtins__": {}}, allowed_names)
     
     def _collect_calibration_data(self):
-        """Kalibrasyon verisi topla."""
-        if "primary" in self._computed_angles:
-            angle = self._computed_angles["primary"]
-            
-            if self.current_state in ["down", "bottom"]:
-                self.calibration_data["min_angles"].append(angle)
-            elif self.current_state in ["up", "top", "start"]:
-                self.calibration_data["max_angles"].append(angle)
-            
-            # Yeterli veri toplandıysa kalibre et
-            if (len(self.calibration_data["min_angles"]) >= self.calibration_reps and
-                len(self.calibration_data["max_angles"]) >= self.calibration_reps):
-                self._apply_calibration()
-    
+        """Deprecated – data collected inline in compute_angle."""
+        pass
+
     def _apply_calibration(self):
-        """Kalibrasyon verilerini uygula."""
-        avg_min = np.mean(self.calibration_data["min_angles"])
-        avg_max = np.mean(self.calibration_data["max_angles"])
-        
-        # State eşiklerini güncelle (basit yaklaşım)
-        # Daha gelişmiş: YAML'daki formülleri dinamik güncelle
-        print(f"[Calibration] {self.name}: min_angle={avg_min:.1f}, max_angle={avg_max:.1f}")
-        
+        """Compute scale+offset from collected angle samples so user's ROM maps to YAML thresholds."""
+        if len(self.calibration_angles_all) < 10:
+            return
+
+        arr = sorted(self.calibration_angles_all)
+        n = len(arr)
+        user_flex = arr[max(0, int(n * 0.05))]    # 5th-percentile  = most-flexed angle
+        user_extend = arr[min(n - 1, int(n * 0.95))]  # 95th-percentile = most-extended angle
+
+        if user_extend - user_flex < 5:            # not enough range to calibrate
+            self.is_calibrated = True
+            return
+
+        # Parse YAML thresholds from state conditions
+        trigger_state = self.counter_rule.get("trigger_state")
+        yaml_flex, yaml_extend = user_flex, user_extend
+
+        for state_name, state_def in self.states.items():
+            condition = state_def.get("condition", "")
+            if state_name == trigger_state:
+                m = re.search(r'angle\s*<=?\s*(\d+(?:\.\d+)?)', condition)
+                if m:
+                    yaml_flex = float(m.group(1))
+            else:
+                # Look for a pure lower-bound condition (extended position)
+                m = re.search(r'angle\s*>(?!=)\s*(\d+(?:\.\d+)?)\s*$', condition)
+                if m:
+                    val = float(m.group(1))
+                    if val > yaml_flex:
+                        yaml_extend = max(yaml_extend, val)
+
+        yaml_range = yaml_extend - yaml_flex
+        user_range = user_extend - user_flex
+
+        if yaml_range > 5 and user_range > 5:
+            self.calibration_scale = yaml_range / user_range
+            self.calibration_offset_val = yaml_flex - self.calibration_scale * user_flex
+        else:
+            self.calibration_scale = 1.0
+            self.calibration_offset_val = 0.0
+
         self.is_calibrated = True
+        print(f"[Calibration] {self.name}: user=[{user_flex:.0f}°,{user_extend:.0f}°] "
+              f"yaml=[{yaml_flex:.0f}°,{yaml_extend:.0f}°] "
+              f"scale={self.calibration_scale:.2f} offset={self.calibration_offset_val:.1f}")
 
 
 class BilateralExercise(BaseExercise):
@@ -562,7 +634,14 @@ class BilateralExercise(BaseExercise):
         
         self.last_count_time_left = 0
         self.last_count_time_right = 0
-    
+
+        # Squeeze tracking (set by engine per-rep)
+        self._flex_min_left     = 180.0
+        self._flex_min_right    = 180.0
+        self._flex_enter_left   = 0.0
+        self._flex_enter_right  = 0.0
+        self._flex_penalty_done = False
+
     def compute_bilateral_angles(self, landmarks, frame_shape: Tuple[int, int]) -> Dict[str, float]:
         """Sol ve sağ taraf açılarını hesapla."""
         angles = {}
@@ -587,6 +666,8 @@ class BilateralExercise(BaseExercise):
         self.prev_state_left = self.current_state_left
         self.prev_state_right = self.current_state_right
         
+        trigger_state = self.counter_rule.get("trigger_state")
+
         # Sol taraf
         left_context = context.copy()
         left_context["angle"] = context.get("left_angle", 0)
@@ -599,7 +680,10 @@ class BilateralExercise(BaseExercise):
                     break
             except:
                 pass
-        
+
+        if trigger_state and self.prev_state_left == trigger_state and self.current_state_left != trigger_state:
+            self.last_left_trigger_left = time.time()
+
         # Sağ taraf
         right_context = context.copy()
         right_context["angle"] = context.get("right_angle", 0)
@@ -612,7 +696,10 @@ class BilateralExercise(BaseExercise):
                     break
             except:
                 pass
-        
+
+        if trigger_state and self.prev_state_right == trigger_state and self.current_state_right != trigger_state:
+            self.last_left_trigger_right = time.time()
+
         return self.current_state_left, self.current_state_right
     
     def update_bilateral_counter(self) -> Tuple[bool, bool]:
@@ -624,24 +711,38 @@ class BilateralExercise(BaseExercise):
         right_counted = False
         
         # Sol
-        if (self.prev_state_left != self.current_state_left and 
-            self.current_state_left == trigger_state and
-            (current_time - self.last_count_time_left) >= self.min_rep_duration):
+        left_cycle_valid = (
+            self.last_left_trigger_left == 0.0 or
+            (current_time - self.last_left_trigger_left) >= self.min_rep_duration
+        )
+        if (self.prev_state_left != self.current_state_left and
+                self.current_state_left == trigger_state and
+                (current_time - self.last_count_time_left) >= self.min_rep_duration and
+                left_cycle_valid):
             self.counter_left += 1
             self.last_count_time_left = current_time
             left_counted = True
-        
+
         # Sağ
-        if (self.prev_state_right != self.current_state_right and 
-            self.current_state_right == trigger_state and
-            (current_time - self.last_count_time_right) >= self.min_rep_duration):
+        right_cycle_valid = (
+            self.last_left_trigger_right == 0.0 or
+            (current_time - self.last_left_trigger_right) >= self.min_rep_duration
+        )
+        if (self.prev_state_right != self.current_state_right and
+                self.current_state_right == trigger_state and
+                (current_time - self.last_count_time_right) >= self.min_rep_duration and
+                right_cycle_valid):
             self.counter_right += 1
             self.last_count_time_right = current_time
             right_counted = True
-        
+
         # Toplam sayaç
         self.counter = self.counter_left + self.counter_right
-        
+
+        # Trigger calibration after N reps (#3)
+        if self.calibration_enabled and not self.is_calibrated and self.counter >= self.calibration_reps:
+            self._apply_calibration()
+
         return left_counted, right_counted
     
     def reset(self):
@@ -653,6 +754,11 @@ class BilateralExercise(BaseExercise):
         self.prev_state_right = None
         self.last_count_time_left = 0
         self.last_count_time_right = 0
+        self._flex_min_left     = 180.0
+        self._flex_min_right    = 180.0
+        self._flex_enter_left   = 0.0
+        self._flex_enter_right  = 0.0
+        self._flex_penalty_done = False
     
     def get_status(self) -> Dict[str, Any]:
         """Bilateral durum bilgisi."""
