@@ -26,3 +26,10 @@ Thumbs.db
 output/
 data/*.db
 *.sqlite3
+
+# MediaPipe model files (downloaded separately, large binaries)
+*.task
+pose_estimation/*.task
+
+# Uploads
+uploads/
