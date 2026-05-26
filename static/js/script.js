@@ -22,7 +22,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoElement = document.getElementById('video');
     const videoPlaceholder = document.getElementById('video-placeholder');
     const startCameraBtn = document.getElementById('start-camera-btn');
-    
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    const videoContainer = document.querySelector('.video-container');
+
     // Camera state
     let cameraStarted = false;
     
@@ -36,29 +38,46 @@ document.addEventListener('DOMContentLoaded', function() {
     // ==================== Camera Control Functions ====================
     function startCamera() {
         if (cameraStarted) return;
-        
+
         console.log('Starting camera...');
         videoElement.src = '/video_feed';
         videoElement.style.display = 'block';
         if (videoPlaceholder) {
             videoPlaceholder.style.display = 'none';
         }
+        if (fullscreenBtn) fullscreenBtn.style.display = 'block';
         cameraStarted = true;
     }
-    
+
     function stopCamera() {
         if (!cameraStarted) return;
-        
+
         console.log('Stopping camera...');
         videoElement.src = '';
         videoElement.style.display = 'none';
         if (videoPlaceholder) {
             videoPlaceholder.style.display = 'flex';
         }
+        if (fullscreenBtn) fullscreenBtn.style.display = 'none';
         cameraStarted = false;
-        
+
         // Notify server to release camera
         fetch('/stop_camera', { method: 'POST' }).catch(() => {});
+    }
+
+    // Fullscreen toggle
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', function() {
+            if (!document.fullscreenElement) {
+                videoContainer.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        document.addEventListener('fullscreenchange', function() {
+            fullscreenBtn.textContent = document.fullscreenElement ? '✕' : '⛶';
+        });
     }
     
     // Start camera button click

@@ -33,3 +33,6 @@ pose_estimation/*.task
 
 # Uploads
 uploads/
+
+# AI assistant context (local only)
+CLAUDE.md
