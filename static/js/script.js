@@ -112,42 +112,47 @@ document.addEventListener('DOMContentLoaded', function() {
     // Exercise type info
     const exerciseTypeInfo = {
         'bilateral': {
-            label: '↔️ Bilateral',
+            label: 'Bilateral',
             color: '#9b59b6',
-            note: '💡 This exercise alternates between left and right sides. Each side counts separately (e.g., left curl = 1, right curl = 2).'
+            note: 'This exercise alternates between left and right sides. Each side counts separately (e.g., left curl = 1, right curl = 2).'
         },
         'duration': {
-            label: '⏱️ Duration',
+            label: 'Duration',
             color: '#e67e22',
-            note: '💡 This is a timed hold exercise. The counter shows seconds held in correct position.'
+            note: 'This is a timed hold exercise. The counter shows seconds held in correct position.'
         },
         'standard': {
-            label: '🔄 Standard',
+            label: 'Standard',
             color: '#3498db',
-            note: '💡 Standard repetition exercise. Each complete movement cycle counts as 1 rep.'
+            note: 'Standard repetition exercise. Each complete movement cycle counts as 1 rep.'
         }
     };
     
+    // SVG icons for exercise cards
+    const ICON_UPPER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="4" height="6" rx="1"/><rect x="18" y="9" width="4" height="6" rx="1"/><rect x="6" y="7" width="2" height="10" rx="1"/><rect x="16" y="7" width="2" height="10" rx="1"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
+    const ICON_LOWER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
+    const ICON_CARDIO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+
     // Exercise display names and descriptions
     const exerciseDetails = {
-        'squat': { name: 'Squat', desc: 'Lower body compound movement targeting quads and glutes', icon: '🦵' },
-        'push_up': { name: 'Push Up', desc: 'Upper body pushing exercise for chest and triceps', icon: '💪' },
-        'hammer_curl': { name: 'Hammer Curl', desc: 'Bicep curl with neutral grip, alternating arms', icon: '💪' },
-        'bicep_curl': { name: 'Bicep Curl', desc: 'Classic bicep exercise alternating between arms', icon: '💪' },
-        'tricep_dip': { name: 'Tricep Dip', desc: 'Chair/bench dips for tricep strength', icon: '💪' },
-        'shoulder_press': { name: 'Shoulder Press', desc: 'Overhead pressing for shoulder development', icon: '💪' },
-        'lateral_raise': { name: 'Lateral Raise', desc: 'Side raises for shoulder width', icon: '💪' },
-        'lunge': { name: 'Lunge', desc: 'Forward lunge alternating between legs', icon: '🦵' },
-        'side_lunge': { name: 'Side Lunge', desc: 'Lateral lunge for inner thigh and glutes', icon: '🦵' },
-        'deadlift': { name: 'Deadlift', desc: 'Hip hinge movement for hamstrings and back', icon: '🦵' },
-        'glute_bridge': { name: 'Glute Bridge', desc: 'Hip bridge for glute activation', icon: '🦵' },
-        'calf_raise': { name: 'Calf Raise', desc: 'Standing raises for calf muscles', icon: '🦵' },
-        'wall_sit': { name: 'Wall Sit', desc: 'Isometric hold against wall for quad endurance', icon: '🦵' },
-        'leg_raise': { name: 'Leg Raise', desc: 'Lying leg raises for lower abs', icon: '🔥' },
-        'plank': { name: 'Plank', desc: 'Core stabilization hold exercise', icon: '🧘' },
-        'mountain_climber': { name: 'Mountain Climber', desc: 'Dynamic cardio with alternating knee drives', icon: '🔥' },
-        'high_knees': { name: 'High Knees', desc: 'Running in place with high knee lifts', icon: '🔥' },
-        'jumping_jack': { name: 'Jumping Jack', desc: 'Classic full body cardio movement', icon: '🔥' }
+        'squat':           { name: 'Squat',          desc: 'Lower body compound movement targeting quads and glutes', icon: ICON_LOWER },
+        'push_up':         { name: 'Push Up',         desc: 'Upper body pushing exercise for chest and triceps',      icon: ICON_UPPER },
+        'hammer_curl':     { name: 'Hammer Curl',     desc: 'Bicep curl with neutral grip, alternating arms',         icon: ICON_UPPER },
+        'bicep_curl':      { name: 'Bicep Curl',      desc: 'Classic bicep exercise alternating between arms',        icon: ICON_UPPER },
+        'tricep_dip':      { name: 'Tricep Dip',      desc: 'Chair/bench dips for tricep strength',                  icon: ICON_UPPER },
+        'shoulder_press':  { name: 'Shoulder Press',  desc: 'Overhead pressing for shoulder development',            icon: ICON_UPPER },
+        'lateral_raise':   { name: 'Lateral Raise',   desc: 'Side raises for shoulder width',                        icon: ICON_UPPER },
+        'lunge':           { name: 'Lunge',           desc: 'Forward lunge alternating between legs',                icon: ICON_LOWER },
+        'side_lunge':      { name: 'Side Lunge',      desc: 'Lateral lunge for inner thigh and glutes',              icon: ICON_LOWER },
+        'deadlift':        { name: 'Deadlift',        desc: 'Hip hinge movement for hamstrings and back',            icon: ICON_LOWER },
+        'glute_bridge':    { name: 'Glute Bridge',    desc: 'Hip bridge for glute activation',                       icon: ICON_LOWER },
+        'calf_raise':      { name: 'Calf Raise',      desc: 'Standing raises for calf muscles',                      icon: ICON_LOWER },
+        'wall_sit':        { name: 'Wall Sit',        desc: 'Isometric hold against wall for quad endurance',        icon: ICON_LOWER },
+        'leg_raise':       { name: 'Leg Raise',       desc: 'Lying leg raises for lower abs',                        icon: ICON_LOWER },
+        'plank':           { name: 'Plank',           desc: 'Core stabilization hold exercise',                      icon: ICON_LOWER },
+        'mountain_climber':{ name: 'Mountain Climber',desc: 'Dynamic cardio with alternating knee drives',           icon: ICON_CARDIO },
+        'high_knees':      { name: 'High Knees',      desc: 'Running in place with high knee lifts',                 icon: ICON_CARDIO },
+        'jumping_jack':    { name: 'Jumping Jack',    desc: 'Classic full body cardio movement',                     icon: ICON_CARDIO }
     };
     
     // Load exercises from API
@@ -184,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
             div.setAttribute('data-type', info.type || 'standard');
             
             div.innerHTML = `
-                <div class="exercise-icon">${details.icon}</div>
+                <div class="exercise-icon">${details.icon || ''}</div>
                 <h3>${details.name}</h3>
                 <span class="exercise-type-badge" style="background-color: ${typeInfo.color}">${typeInfo.label}</span>
             `;

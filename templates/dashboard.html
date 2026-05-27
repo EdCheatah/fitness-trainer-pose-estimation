@@ -3,59 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fitness Tracker Dashboard</title>
+    <title>FitTrainer — Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Fitness Tracker Dashboard</h1>
-            <p>Track your workout progress</p>
-            <nav class="main-nav">
-                <ul>
-                    <li><a href="/" class="nav-link">Home</a></li>
-                    <li><a href="/dashboard" class="nav-link active">Dashboard</a></li>
-                    <li><a href="/profile" class="nav-link">Profile</a></li>
-                </ul>
-            </nav>
-        </header>
-        
-        <div class="dashboard-content">
-            <div class="stats-summary">
-                <div class="stat-card">
-                    <h3>Total Workouts</h3>
-                    <p class="stat-value">{{ total_workouts }}</p>
+
+    <!-- ── Sidebar ────────────────────────────────────── -->
+    <aside class="sidebar">
+
+        <div class="sidebar-brand">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="9" width="4" height="6" rx="1"/>
+                <rect x="18" y="9" width="4" height="6" rx="1"/>
+                <rect x="6" y="7" width="2" height="10" rx="1"/>
+                <rect x="16" y="7" width="2" height="10" rx="1"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <span>FitTrainer</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+                Home
+            </a>
+            <a href="/dashboard" class="sidebar-link active">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"/>
+                    <line x1="12" y1="20" x2="12" y2="4"/>
+                    <line x1="6"  y1="20" x2="6"  y2="14"/>
+                </svg>
+                Dashboard
+            </a>
+            <!-- <a href="/video_analysis" class="sidebar-link">Video Analysis</a> -->
+        </nav>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-section">
+            <div class="section-header">
+                <span class="section-title">Overview</span>
+            </div>
+            <div class="dash-sidebar-info">
+                <div class="dash-sidebar-item">
+                    <span class="dash-sidebar-label">Total Workouts</span>
+                    <span class="dash-sidebar-val">{{ total_workouts }}</span>
                 </div>
-                <div class="stat-card">
-                    <h3>Total Exercises</h3>
-                    <p class="stat-value">{{ total_exercises }}</p>
+                <div class="dash-sidebar-item">
+                    <span class="dash-sidebar-label">This Week</span>
+                    <span class="dash-sidebar-val">{{ weekly_workouts }}</span>
                 </div>
-                <div class="stat-card">
-                    <h3>This Week</h3>
-                    <p class="stat-value">{{ weekly_workouts }}</p>
-                </div>
-                <div class="stat-card">
-                    <h3>Streak</h3>
-                    <p class="stat-value">{{ streak_days }} days</p>
+                <div class="dash-sidebar-item">
+                    <span class="dash-sidebar-label">Streak</span>
+                    <span class="dash-sidebar-val accent">{{ streak_days }}d</span>
                 </div>
             </div>
-            
-            <div class="charts-container">
-                <div class="chart-card">
-                    <h3>Weekly Activity</h3>
+        </div>
+
+    </aside>
+
+    <!-- ── Main ──────────────────────────────────────── -->
+    <main class="main dash-main">
+
+        <!-- Page header -->
+        <div class="dash-header">
+            <div>
+                <h1 class="dash-title">Dashboard</h1>
+                <p class="dash-subtitle">Track your workout progress</p>
+            </div>
+            <button id="refresh-stats" class="btn dash-refresh-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                Refresh
+            </button>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="dash-stats">
+            <div class="dash-stat-card">
+                <div class="dash-stat-icon green">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="dash-stat-label">Total Workouts</div>
+                    <div class="dash-stat-number">{{ total_workouts }}</div>
+                </div>
+            </div>
+            <div class="dash-stat-card">
+                <div class="dash-stat-icon orange">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="9" width="4" height="6" rx="1"/>
+                        <rect x="18" y="9" width="4" height="6" rx="1"/>
+                        <rect x="6" y="7" width="2" height="10" rx="1"/>
+                        <rect x="16" y="7" width="2" height="10" rx="1"/>
+                        <line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="dash-stat-label">Total Exercises</div>
+                    <div class="dash-stat-number">{{ total_exercises }}</div>
+                </div>
+            </div>
+            <div class="dash-stat-card">
+                <div class="dash-stat-icon blue">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="dash-stat-label">This Week</div>
+                    <div class="dash-stat-number">{{ weekly_workouts }}</div>
+                </div>
+            </div>
+            <div class="dash-stat-card">
+                <div class="dash-stat-icon red">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="dash-stat-label">Streak</div>
+                    <div class="dash-stat-number">{{ streak_days }} <span class="dash-stat-unit">days</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="dash-charts">
+            <div class="dash-chart-card">
+                <div class="dash-card-header">
+                    <span class="dash-card-title">Weekly Activity</span>
+                    <span class="dash-card-sub">minutes per day</span>
+                </div>
+                <div class="dash-chart-wrap">
                     <canvas id="weeklyChart"></canvas>
                 </div>
-                <div class="chart-card">
-                    <h3>Exercise Distribution</h3>
+            </div>
+            <div class="dash-chart-card">
+                <div class="dash-card-header">
+                    <span class="dash-card-title">Exercise Split</span>
+                    <span class="dash-card-sub">by type</span>
+                </div>
+                <div class="dash-chart-wrap">
                     <canvas id="exerciseChart"></canvas>
                 </div>
             </div>
-            
-            <div class="recent-workouts">
-                <h2>Recent Workouts</h2>
+        </div>
+
+        <!-- Recent workouts table -->
+        <div class="dash-table-card">
+            <div class="dash-card-header">
+                <span class="dash-card-title">Recent Workouts</span>
+            </div>
+            <div class="dash-table-wrap">
                 <table class="workout-table">
                     <thead>
                         <tr>
@@ -80,71 +193,84 @@
                 </table>
             </div>
         </div>
-    </div>
-    
+
+    </main>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
     <script>
-        // Sample data for charts - would be replaced with data from backend
+        const CHART_COLORS = {
+            orange:      'rgba(249, 115, 22,  0.85)',
+            orangeDim:   'rgba(249, 115, 22,  0.2)',
+            green:       'rgba(34,  197, 94,  0.85)',
+            blue:        'rgba(99,  102, 241, 0.85)',
+            purple:      'rgba(168, 85,  247, 0.85)',
+            grid:        'rgba(255, 255, 255, 0.06)',
+            text:        '#64748B',
+        };
+
+        Chart.defaults.color = CHART_COLORS.text;
+        Chart.defaults.borderColor = CHART_COLORS.grid;
+
         const weeklyData = {
             labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
             datasets: [{
-                label: 'Workout Minutes',
+                label: 'Minutes',
                 data: [30, 45, 0, 60, 20, 0, 45],
-                backgroundColor: 'rgba(52, 152, 219, 0.5)',
-                borderColor: 'rgba(52, 152, 219, 1)',
-                borderWidth: 1
+                backgroundColor: CHART_COLORS.orangeDim,
+                borderColor: CHART_COLORS.orange,
+                borderWidth: 2,
+                borderRadius: 6,
+                borderSkipped: false,
             }]
         };
-        
+
         const exerciseData = {
-            labels: ['Squats', 'Push Ups', 'Hammer Curls'],
+            labels: ['Squats', 'Bicep Curl', 'Lateral Raise'],
             datasets: [{
                 data: [40, 35, 25],
-                backgroundColor: [
-                    'rgba(52, 152, 219, 0.7)',
-                    'rgba(46, 204, 113, 0.7)',
-                    'rgba(155, 89, 182, 0.7)'
-                ],
-                borderColor: [
-                    'rgba(52, 152, 219, 1)',
-                    'rgba(46, 204, 113, 1)',
-                    'rgba(155, 89, 182, 1)'
-                ],
-                borderWidth: 1
+                backgroundColor: [CHART_COLORS.orange, CHART_COLORS.green, CHART_COLORS.blue],
+                borderColor: 'transparent',
+                hoverOffset: 6,
             }]
         };
-        
-        // Initialize charts
+
         window.addEventListener('DOMContentLoaded', () => {
-            const weeklyChart = new Chart(
-                document.getElementById('weeklyChart'),
-                {
-                    type: 'bar',
-                    data: weeklyData,
-                    options: {
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
+            new Chart(document.getElementById('weeklyChart'), {
+                type: 'bar',
+                data: weeklyData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: CHART_COLORS.grid },
+                            ticks: { color: CHART_COLORS.text },
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: CHART_COLORS.text },
                         }
                     }
                 }
-            );
-            
-            const exerciseChart = new Chart(
-                document.getElementById('exerciseChart'),
-                {
-                    type: 'doughnut',
-                    data: exerciseData,
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                            }
+            });
+
+            new Chart(document.getElementById('exerciseChart'), {
+                type: 'doughnut',
+                data: exerciseData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: CHART_COLORS.text, padding: 16, boxWidth: 12 }
                         }
-                    }
+                    },
+                    cutout: '65%',
                 }
-            );
+            });
         });
     </script>
 </body>
