@@ -372,30 +372,31 @@ class ExerciseEngine:
                 pass
 
     def _draw_feedback(self, frame, feedback_list):
-        """Render feedback messages above the rep counter (bottom-left)."""
-        y_offset = frame.shape[0] - 115
+        """Render feedback messages stacked from the bottom of the frame."""
+        y_offset = frame.shape[0] - 100  # start from the bottom
 
         for fb in feedback_list:
             message = fb["message"]
             severity = fb.get("severity", "warning")
 
+            # Color by severity
             if severity == "error":
-                bg_color = (40, 30, 180)
+                bg_color = (0, 0, 200)
             elif severity == "warning":
-                bg_color = (30, 110, 220)
-            else:
-                bg_color = (100, 140, 30)
+                bg_color = (0, 165, 255)
+            else:  # info
+                bg_color = (200, 200, 0)
 
             draw_text_with_background(
-                frame, message, (14, y_offset),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.52, (255, 255, 255), bg_color, 1
+                frame, message, (20, y_offset),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), bg_color, 1
             )
-            y_offset -= 28
+            y_offset -= 35
 
     def draw_status_overlay(self, frame, exercise_goal: int = 10, sets_goal: int = 3,
                            sets_completed: int = 0):
         """
-        Render the status overlay (stage pill top-left, large rep counter bottom-left).
+        Render the status overlay (rep count, current set, goals, stage).
 
         Args:
             frame: OpenCV frame
@@ -406,75 +407,125 @@ class ExerciseEngine:
         if not self.exercise:
             return
 
-        h, w = frame.shape[:2]
+        info = self._exercise_info
 
-        # Top-left: current stage pill
-        state = self.exercise.current_state or "ready"
+        h, w = frame.shape[:2]
+        x = w - 220
+
+        # Exercise name
         draw_text_with_background(
-            frame, state.upper(), (12, 22),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.48, (210, 210, 220), (22, 22, 36), 1
+            frame, f"Exercise: {info.get('name', self.exercise_name)}",
+            (x, 50), cv2.FONT_HERSHEY_DUPLEX, 0.7,
+            (255, 255, 255), (20, 60, 100), 1
         )
 
-        # Bottom-left: large rep / timer counter
-        if isinstance(self.exercise, DurationExercise):
-            counter_text = f"{int(getattr(self.exercise, 'current_duration', 0))}s"
-            goal_text = f"/ {self.exercise.target_duration}s"
-        else:
-            counter_text = str(self.exercise.counter)
-            goal_text = f"/ {exercise_goal}"
+        # Reps goal
+        draw_text_with_background(
+            frame, f"Reps Goal: {exercise_goal}",
+            (x, 80), cv2.FONT_HERSHEY_DUPLEX, 0.7,
+            (255, 255, 255), (20, 60, 100), 1
+        )
 
-        cy = h - 18
-        (tw, _), _ = cv2.getTextSize(counter_text, cv2.FONT_HERSHEY_SIMPLEX, 2.2, 3)
-        cv2.putText(frame, counter_text, (14, cy),
-                    cv2.FONT_HERSHEY_SIMPLEX, 2.2, (255, 255, 255), 3, cv2.LINE_AA)
-        cv2.putText(frame, goal_text, (14 + tw + 6, cy - 8),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.58, (140, 140, 150), 1, cv2.LINE_AA)
+        # Sets goal
+        draw_text_with_background(
+            frame, f"Sets Goal: {sets_goal}",
+            (x, 110), cv2.FONT_HERSHEY_DUPLEX, 0.7,
+            (255, 255, 255), (20, 60, 100), 1
+        )
 
-        # Bilateral: per-side counters above the main counter
+        # Current set
+        draw_text_with_background(
+            frame, f"Current Set: {sets_completed + 1}",
+            (x, 140), cv2.FONT_HERSHEY_DUPLEX, 0.7,
+            (255, 255, 255), (20, 60, 100), 1
+        )
+
+        # Rep counter
+        counter = self.exercise.counter
+        draw_text_with_background(
+            frame, f"Count: {counter}",
+            (x, 200), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
+            (255, 255, 255), (30, 30, 50), 2
+        )
+
+        # Stage
+        state = self.exercise.current_state or "Ready"
+        draw_text_with_background(
+            frame, f"Stage: {state.title() if state else 'Ready'}",
+            (x, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+            (255, 255, 255), (30, 30, 50), 1
+        )
+
+        # Extra info for bilateral exercises
         if isinstance(self.exercise, BilateralExercise):
-            lr_text = f"L:{self.exercise.counter_left}  R:{self.exercise.counter_right}"
             draw_text_with_background(
-                frame, lr_text, (14, h - 76),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.42, (190, 190, 200), (22, 22, 36), 1
+                frame, f"Left: {self.exercise.counter_left} | Right: {self.exercise.counter_right}",
+                (x, 280), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                (255, 255, 255), (30, 30, 50), 1
+            )
+
+        # Extra info for duration exercises
+        if isinstance(self.exercise, DurationExercise):
+            duration = int(self.exercise.current_duration)
+            target = self.exercise.target_duration
+            draw_text_with_background(
+                frame, f"Hold: {duration}/{target}s",
+                (x, 280), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                (255, 255, 255), (30, 30, 50), 1
             )
 
     def draw_form_score(self, frame):
         """
-        Render a compact form score badge in the bottom-right corner of the frame.
+        Render the Form Score indicator (large score with letter grade and progress bar)
+        in the top-right corner of the frame.
         """
         if not self.exercise:
             return
 
-        h, w = frame.shape[:2]
         score = self.exercise.current_form_score
         grade = self.exercise.get_form_score_grade()
         color = self.exercise.get_form_score_color()
+        avg_score = self.exercise.avg_form_score
 
-        # Compose badge text: score value + grade letter
-        badge_text = f"{score}  {grade}"
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        scale = 0.78
-        thickness = 2
-        (tw, th), baseline = cv2.getTextSize(badge_text, font, scale, thickness)
+        # Frame dimensions
+        h, w = frame.shape[:2]
 
-        pad = 9
-        bx = w - tw - pad * 2 - 12
-        by = h - th - pad * 2 - 12
+        # Top-left anchor
+        x_pos = 10
+        y_pos = 50
 
-        # Dark background rectangle
-        cv2.rectangle(frame,
-                      (bx - pad, by - pad),
-                      (bx + tw + pad, by + th + pad + baseline),
-                      (18, 18, 28), -1)
-        # Colored border
-        cv2.rectangle(frame,
-                      (bx - pad, by - pad),
-                      (bx + tw + pad, by + th + pad + baseline),
-                      color, 1)
+        # Background box
+        cv2.rectangle(frame, (x_pos, y_pos - 40), (x_pos + 170, y_pos + 100), (50, 50, 50), -1)
+        cv2.rectangle(frame, (x_pos, y_pos - 40), (x_pos + 170, y_pos + 100), color, 2)
 
-        # Score + grade
-        cv2.putText(frame, badge_text, (bx, by + th),
-                    font, scale, color, thickness, cv2.LINE_AA)
+        # "FORM SCORE" header
+        cv2.putText(frame, "FORM SCORE", (x_pos, y_pos - 15),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+
+        # Big score number
+        cv2.putText(frame, f"{score}", (x_pos + 20, y_pos + 45),
+                   cv2.FONT_HERSHEY_SIMPLEX, 2.0, color, 3)
+
+        # Letter grade
+        cv2.putText(frame, grade, (x_pos + 110, y_pos + 45),
+                   cv2.FONT_HERSHEY_SIMPLEX, 1.5, color, 2)
+
+        # Average score
+        cv2.putText(frame, f"Avg: {avg_score}", (x_pos, y_pos + 80),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+
+        # Progress bar
+        bar_width = 150
+        bar_height = 8
+        bar_x = x_pos
+        bar_y = y_pos + 90
+
+        # Bar background
+        cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (100, 100, 100), -1)
+
+        # Filled portion
+        fill_width = int((score / 100) * bar_width)
+        cv2.rectangle(frame, (bar_x, bar_y), (bar_x + fill_width, bar_y + bar_height), color, -1)
 
     def get_counter(self) -> int:
         """Return the current rep counter."""

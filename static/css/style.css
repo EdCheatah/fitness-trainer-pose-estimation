@@ -319,6 +319,31 @@ body {
     line-height: 1.5;
 }
 
+/* Sidebar workout config */
+.sidebar-workout {
+    padding: 14px 10px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.workout-inputs {
+    display: flex;
+    gap: 10px;
+}
+
+.workout-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.workout-actions .btn {
+    flex: 1;
+    padding: 9px 10px;
+    font-size: 0.82rem;
+}
+
 /* ── Main ────────────────────────────────────────── */
 
 .main {
@@ -344,7 +369,7 @@ body {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 12px 16px;
+    padding: 14px 16px;
     min-width: 0;
 }
 
@@ -365,7 +390,7 @@ body {
 
 .stat-value {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 1.2rem;
+    font-size: 2rem;
     font-weight: 700;
     color: var(--text);
     white-space: nowrap;

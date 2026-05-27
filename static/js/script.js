@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/exercises');
             const data = await response.json();
             exercisesData = data;
-            exerciseCount.textContent = `(${data.count} exercises)`;
+            exerciseCount.textContent = '';
             renderExercises(data.exercises);
         } catch (error) {
             console.error('Error loading exercises:', error);
