@@ -128,6 +128,11 @@ class BaseExercise:
         # Feedback penalty tracking
         self.active_feedback_count = 0
 
+        # Per-rep depth check (used by engine for exercises with depth_check config)
+        self.depth_check = config.get("depth_check", None)
+        self._rep_min_angle = 180.0
+        self._shallow_fb_active = False
+
     def get_landmark_coords(self, landmarks, point_name: str, frame_shape: Tuple[int, int]) -> Tuple[int, int]:
         """
         Get pixel coordinates from a landmark name.
@@ -496,6 +501,8 @@ class BaseExercise:
         self.current_form_score = 100
         self.avg_form_score = 100
         self.active_feedback_count = 0
+        self._rep_min_angle = 180.0
+        self._shallow_fb_active = False
 
     def get_status(self) -> Dict[str, Any]:
         """Return the current exercise status."""

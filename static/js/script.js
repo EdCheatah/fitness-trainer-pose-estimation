@@ -95,11 +95,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Exercises hidden from the UI (YAMLs kept, just not shown)
+    const HIDDEN_EXERCISES = [
+        'mountain_climber', 'plank', 'high_knees', 'deadlift',
+        'calf_raise', 'lunge', 'side_lunge', 'wall_sit',
+        'shoulder_press', 'hammer_curl', 'tricep_dip', 'push_up'
+    ];
+
     // Exercise categories mapping
     const exerciseCategories = {
-        upper: ['push_up', 'hammer_curl', 'bicep_curl', 'tricep_dip', 'shoulder_press', 'lateral_raise'],
-        lower: ['squat', 'lunge', 'side_lunge', 'deadlift', 'glute_bridge', 'calf_raise', 'wall_sit', 'leg_raise'],
-        cardio: ['mountain_climber', 'high_knees', 'jumping_jack', 'plank']
+        upper: ['bicep_curl', 'lateral_raise'],
+        lower: ['squat', 'glute_bridge', 'leg_raise'],
+        cardio: ['jumping_jack']
     };
     
     // Exercise type info
@@ -161,9 +168,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderExercises(exercises) {
         exerciseGrid.innerHTML = '';
         
-        let filteredExercises = exercises;
+        let filteredExercises = exercises.filter(ex => !HIDDEN_EXERCISES.includes(ex));
         if (currentCategory !== 'all') {
-            filteredExercises = exercises.filter(ex => exerciseCategories[currentCategory]?.includes(ex));
+            filteredExercises = filteredExercises.filter(ex => exerciseCategories[currentCategory]?.includes(ex));
         }
         
         filteredExercises.forEach(exercise => {

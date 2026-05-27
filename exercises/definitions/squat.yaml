@@ -71,10 +71,12 @@ feedback:
     message: "Leaning too far forward! Keep your chest up."
     severity: warning
 
-  not_deep_enough:
-    condition: "angle > 100 and angle < 130"
-    message: "Go deeper!"
-    severity: info
+# Depth check: fires after a counted rep where the minimum angle never went below threshold.
+# Feedback persists until the next rep starts. Threshold is tunable.
+depth_check:
+  threshold: 85
+  message: "Go deeper!"
+  severity: info
 
 # Calibration settings
 calibration:

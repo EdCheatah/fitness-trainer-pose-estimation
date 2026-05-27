@@ -136,12 +136,36 @@ class ExerciseEngine:
         # Start rep tracking the moment we enter the descent state
         if prev_state == "start" and self.exercise.current_state == "descent":
             self.exercise.start_rep_tracking()
+            self.exercise._rep_min_angle = 180.0
+            self.exercise._shallow_fb_active = False
+
+        # Track the minimum angle reached during the rep (descent + ascent phases)
+        if self.exercise.current_state in ("descent", "ascent"):
+            self.exercise._rep_min_angle = min(
+                self.exercise._rep_min_angle, context.get("angle", 180)
+            )
 
         # Update the rep counter
         counted = self.exercise.update_counter()
 
+        # On rep count: flag if depth threshold was never reached
+        depth_cfg = self.exercise.depth_check
+        if depth_cfg:
+            if counted:
+                self.exercise._shallow_fb_active = (
+                    self.exercise._rep_min_angle > depth_cfg.get("threshold", 85)
+                )
+
         # Evaluate form feedback rules
         feedback = self.exercise.check_feedback(context)
+
+        # Inject depth feedback while the shallow flag is active
+        if depth_cfg and self.exercise._shallow_fb_active:
+            feedback.append({
+                "name": "not_deep_enough",
+                "message": depth_cfg.get("message", "Go deeper!"),
+                "severity": depth_cfg.get("severity", "info"),
+            })
 
         # Compute the FORM SCORE
         form_score = self.exercise.calculate_form_score(context, feedback)
