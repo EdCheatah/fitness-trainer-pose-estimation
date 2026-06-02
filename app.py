@@ -42,6 +42,7 @@ try:
     from exercises.engine import ExerciseEngine
     from exercises.loader import get_available_exercises, get_exercise_info
     from utils.draw_text_with_background import draw_text_with_background
+    from utils.tts import TTSManager
 
     logger.info("Successfully imported pose estimation modules")
 except ImportError as e:
@@ -89,6 +90,7 @@ output_frame = None
 lock = threading.Lock()
 exercise_running = False
 exercise_engine = ExerciseEngine()  # NEW: Global exercise engine
+tts_manager = TTSManager()  # Spoken feedback through PC speakers
 current_exercise_type = None
 exercise_goal = 0
 sets_completed = 0
@@ -286,6 +288,9 @@ def generate_frames():
                         # Draw Form Score
                         exercise_engine.draw_form_score(frame)
 
+                        # Speak active feedback (non-blocking, debounced)
+                        tts_manager.speak_feedback(result.get("feedback", []))
+
                         # Check if rep goal is reached for current set
                         current_counter = exercise_engine.get_counter()
                         if current_counter >= exercise_goal:
@@ -295,6 +300,7 @@ def generate_frames():
                             # Check if all sets are completed
                             if sets_completed >= sets_goal:
                                 exercise_running = False
+                                tts_manager.reset()
                                 avg_score = (
                                     exercise_engine.exercise.avg_form_score
                                     if exercise_engine.exercise
@@ -510,6 +516,7 @@ def stop_exercise():
         logger.info(f"Workout stopped. Avg form score: {avg_form_score}")
 
     exercise_running = False
+    tts_manager.reset()
     return jsonify({"success": True})
 
 

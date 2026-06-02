@@ -5,6 +5,9 @@ mediapipe>=0.10.0
 numpy>=1.21.0
 pyyaml>=6.0.0
 
+# Spoken feedback (text-to-speech, uses Windows SAPI5 voices)
+pyttsx3>=2.90
+
 # Video processing (H.264 codec support for browser-compatible videos)
 imageio>=2.31.0
 imageio-ffmpeg>=0.4.8
