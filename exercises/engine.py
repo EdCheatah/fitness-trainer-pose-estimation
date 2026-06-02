@@ -34,6 +34,7 @@ class ExerciseEngine:
         self.exercise_name: str = None
         self._exercise_info: Dict = {}
         self._body_visible_since: Optional[float] = None
+        self._last_feedback: List[Dict] = []
 
     def set_exercise(self, exercise_name: str) -> bool:
         """
@@ -113,6 +114,9 @@ class ExerciseEngine:
             # Rendering
             self._draw_visualization(frame, landmarks, frame_shape)
             self._draw_feedback(frame, result["feedback"])
+
+            # Persist feedback so get_status() can expose it
+            self._last_feedback = result.get("feedback", [])
 
         except Exception as e:
             result["success"] = False
@@ -536,7 +540,9 @@ class ExerciseEngine:
     def get_status(self) -> Dict[str, Any]:
         """Return the current exercise status."""
         if self.exercise:
-            return self.exercise.get_status()
+            status = self.exercise.get_status()
+            status["feedback"] = [fb["message"] for fb in self._last_feedback]
+            return status
         return {}
 
     @staticmethod

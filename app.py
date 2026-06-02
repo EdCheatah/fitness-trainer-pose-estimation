@@ -521,6 +521,7 @@ def get_status():
 
     status = {
         "exercise_running": exercise_running,
+        "exercise": current_exercise_type,
         "current_reps": (
             exercise_engine.get_counter() if exercise_engine.exercise else 0
         ),
@@ -541,6 +542,7 @@ def get_status():
         status["form_score"] = ex_status.get("form_score", 100)
         status["avg_form_score"] = ex_status.get("avg_form_score", 100)
         status["form_grade"] = ex_status.get("form_grade", "A")
+        status["feedback"] = ex_status.get("feedback", [])
 
     return jsonify(status)
 
@@ -960,7 +962,7 @@ if __name__ == "__main__":
         print("-" * 50)
         print("🌐 Open http://127.0.0.1:5000 in your browser")
         print("=" * 50)
-        app.run(debug=False, threaded=True, use_reloader=False)
+        app.run(host="0.0.0.0", debug=False, threaded=True, use_reloader=False)
     except Exception as e:
         logger.error(f"Failed to start application: {e}")
         traceback.print_exc()
